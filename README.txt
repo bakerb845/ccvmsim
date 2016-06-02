@@ -6,29 +6,30 @@
 (2) Workflow:
 
   (a) Unfortunaely I'm pressed for time.  Basically, you have to:
-       (i)  Get the latest and greatest CVMs from Art Frankel and 
-       (ii) 
+       (i)  Get the latest and greatest CVMs from Art Frankel and name
+            them:
+              Vpl1c.bin
+              Vpl2c.bin
+              Vpl3c.bin
+              Vsl1c.bin
+              Vsl2c.bin
+              Vsl3c.bin 
+       (ii) Modify the cvm.ini file to encapsulate your region of interest
+       (iii) Cross your fingers and run cvm_mesher.  
 
-  (a) cvm_resample:
+  (b) Eventually there will be options for converting those wonderful 
+      CVM binary files hdf5 so you don't need to know all the hardwired
+      constants in include/cvm_constants.h.  Also you could stick an 
+      xdmf file next to it and actually look at the model with Paraview.
+      cvm_repack would be a good name for that.  cvm_repack'd models could
+      then be extracted to produce models for NonLinLoc.  This is because
+      if you want to work with real data (why?) you'll probably discover
+      the 1D catalog earthquake locations and the 3D earthquake locations
+      are different - i.e. you'll have to relocate with a 3D locator like
+      NonLinLoc.  cvm2nll would be a good name for that.   And cvm_mesher
+      shouldn't do everything I just described because as it stands now
+      you have to go in an uncomment things in random spots.
 
-        The workflow usually begins by downsampling and interpolating the CCVM.
-        To do this in the ini file set the dx_resample_cvm, dy_resample_cvm, and
-        dz_resample_cvm to the desired values (preferably all equal).  Then,
-        set the region of interest if modeling a subset of the CVM by specifying
-        the lower left corner bound (lat0,lon0) and upper right corner bound 
-        (lat1,lon1).  The mesh will be resampled and saved to and hdf5 file.
-        An accompanying xdmf file will be produced so you can view the model
-        with Paraview.
-
-  (b) cvm_mesher:
-
-        After
-
-  (c) cvm_addtopo:
-        With the simple mesh created it can now be deformed to topography.  For
-        a topographic model  
-         
-         
 (3) Installation:
   (a) Dependencies
       -  Download and install GSL >= v2
@@ -37,4 +38,5 @@
          https://github.com/bakerb845/libiscl
       -  Download and install zlib
       -  Download and install hdf5
+      -  https://drive.google.com/folderview?id=0B_12SLGjHpOzSzl6OWh0TUJ0bGc&usp=sharing 
 
