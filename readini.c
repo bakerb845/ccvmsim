@@ -101,8 +101,31 @@ int cvm_readini(char *projnm, struct cvm_parms_struct *parms)
         return -1;
     }
     // get the mesh directory
-    s = iniparser_getstring(ini, "cvm_h5repack:mesh_outputdir", "./\0");
-    strcpy(parms->mesh_outputdir, "./\0");
+    strcpy(parms->cvm_outputdir, "./\0");
+    s = iniparser_getstring(ini, "cvm_h5repack:cvm_outputdir", "./\0");
+    if (s != NULL){
+        if (strlen(s) > 0){ 
+            memset(parms->cvm_outputdir, 0, sizeof(parms->cvm_outputdir));
+            strcpy(parms->cvm_outputdir, s); 
+        }
+    }   
+    if (os_makedirs(parms->cvm_outputdir) != 0){ 
+        log_errorF("%s: Failed to make cvm output directory\n", fcnm);
+        return -1; 
+    }
+    // get the nll directory
+    strcpy(parms->nll_outputdir, "./\0");
+    s = iniparser_getstring(ini, "cvm_h5repack:nll_outputdir", "./\0");
+    if (s != NULL){
+        if (strlen(s) > 0){
+            memset(parms->nll_outputdir, 0, sizeof(parms->nll_outputdir));
+            strcpy(parms->nll_outputdir, s); 
+        }
+    }
+    if (os_makedirs(parms->nll_outputdir) != 0){
+        log_errorF("%s: Failed to make nll output directory\n", fcnm);
+        return -1; 
+    }
     // get lat/lon/max depth
     parms->lat0 = iniparser_getdouble(ini, "cvm_h5repack:lat0\0",
                                       parms->lat0_cvm);
@@ -114,7 +137,7 @@ int cvm_readini(char *projnm, struct cvm_parms_struct *parms)
                                       parms->lon1_cvm);
     parms->zmin = iniparser_getdouble(ini, "cvm_h5repack:zmin\0", 0.0);
     parms->zmax = iniparser_getdouble(ini, "cvm_h5repack:zmax\0",
-                                      z0_cvm[2]*1.e-3);
+                                      z0_cvm[3]*1.e-3);
     if (parms->lon0 < 0.0){parms->lon0 = parms->lon0 + 360.0;}
     if (parms->lon1 < 0.0){parms->lon1 = parms->lon1 + 360.0;}
     if (parms->lat0 < parms->lat0_cvm){
@@ -213,6 +236,73 @@ int cvm_readini(char *projnm, struct cvm_parms_struct *parms)
     parms->setvs_from_vp = iniparser_getboolean(ini,
                                                 "cvm_h5repack:setvs_from_vp\0",
                                                 false);
+    //------------------------------------------------------------------------//
+    //                                cvm_mesh                                //
+    //------------------------------------------------------------------------//
+    strcpy(parms->mesh_outputdir, "./\0");
+    s = iniparser_getstring(ini, "cvm_mesh:mesh_outputdir\0", "./\0");
+    if (s != NULL)
+    {
+        if (strlen(s) > 0){
+            memset(parms->mesh_outputdir, 0, sizeof(parms->mesh_outputdir));
+            strcpy(parms->mesh_outputdir, s);
+        }
+    }
+    if (os_makedirs(parms->mesh_outputdir) != 0){
+        log_errorF("%s: Failed to make mesh output directory\n", fcnm);
+        return -1;
+    }
+    parms->dx_fem = iniparser_getdouble(ini, "cvm_mesh:dx_fem\0", 2500.0);
+    if (parms->dx_fem <= 0.0)
+    {
+        log_errorF("%s: Error dz grid spacing must be positive \n", fcnm);
+        return -1;
+    }
+    parms->dy_fem = iniparser_getdouble(ini, "cvm_mesh:dy_fem\0", 2500.0);
+    if (parms->dy_fem <= 0.0)
+    {
+        log_errorF("%s: Error dz grid spacing must be positive \n", fcnm);
+        return -1;
+    }
+    parms->dz_fem = iniparser_getdouble(ini, "cvm_mesh:dz_fem\0", 2500.0);
+    if (parms->dz_fem <= 0.0)
+    {
+        log_errorF("%s: Error dz grid spacing must be positive \n", fcnm);
+        return -1;
+    }
+    // Deform FEM mesh to topography?
+    parms->ltopo
+        = iniparser_getboolean(ini, "cvm_mesh:setTopography\0", false);
+    if (parms->ltopo)
+    {
+        s = iniparser_getstring(ini, "cvm_mesh:topo_file\0", NULL);
+        if (s == NULL)
+        {
+            log_errorF("%s: Error topography file not specified\n", fcnm);
+            return -1;
+        }
+        strcpy(parms->topofl, s);
+        if (!os_path_isfile(parms->topofl)) 
+        {
+            log_errorF("%s: Error topography file doesn't exist %s\n",
+                       fcnm, parms->topofl);
+            return -1;
+        }
+    }
+    parms->utm_zone = iniparser_getint(ini, "cvm_mesh:utm_zone\0",
+                                       parms->utmzone_cvm);
+    if (parms->utm_zone < 1 || parms->utm_zone > 60)
+    {
+        log_errorF("%s: Invalid UTM zone\n", fcnm);
+        return -1;
+    }
+    if (parms->utm_zone != parms->utmzone_cvm)
+    {
+        log_warnF("%s: Warning topography UTM zone inconsistent with CVM\n",
+                  fcnm);
+    }
+    parms->ztopo_min = iniparser_getdouble(ini, "cvm_mesh:ztopo_min\0",
+                                           (parms->zmin + parms->zmax)/2.0);
     // have ini parser free the ini dictionary
     iniparser_freedict(ini);
     return 0;

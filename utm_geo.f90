@@ -107,9 +107,9 @@
   LOGICAL(C_BOOL), intent(in) :: SUPPRESS_UTM_PROJECTION
 
 ! local parameters
-  REAL(C_DOUBLE), PARAMETER :: PI = 3.141592653589793d0
-  INTEGER(C_INT), PARAMETER :: ILONGLAT2UTM = 0
-  INTEGER(C_INT), PARAMETER :: IUTM2LONGLAT = 1
+  DOUBLE PRECISION, PARAMETER :: PI = 3.141592653589793d0
+  INTEGER, PARAMETER :: ILONGLAT2UTM = 0
+  INTEGER, PARAMETER :: IUTM2LONGLAT = 1
 
 ! From http://en.wikipedia.org/wiki/Universal_Transverse_Mercator_coordinate_system :
 ! The Universal Transverse Mercator coordinate system was developed by the United States Army Corps of Engineers in the 1940s.
@@ -131,8 +131,8 @@
   double precision, parameter :: scfa=0.9996d0
   double precision, parameter :: north=0.d0, east=500000.d0
 
-  double precision, parameter :: DEGREES_TO_RADIANS=PI/180.d0, &
-                                 RADIANS_TO_DEGREES=180.d0/PI
+  double precision, parameter :: DEGREES_TO_RADIANS=0.017453292519943295d0
+  double precision, parameter :: RADIANS_TO_DEGREES=57.29577951308232d0
 
 ! local variables
   integer :: zone
@@ -298,4 +298,61 @@
   endif
 
   end subroutine utm_geo
-
+!                                                                                        !
+!========================================================================================!
+!                                                                                        !
+!>    @brief Converts latitudes/longitudes to UTMs
+!>
+!>    @param[in] rlat4                 latitude (degrees)
+!>    @param[in] rlon4                 longitude (degrees, negative for west)
+!>    @param[in] UTM_PROJECTION_ZONE   UTM zone
+!>                                      The Northern hemisphere corresponds to
+!>                                      zones +1 to +60.
+!>                                      The Southern hemisphere corresponds to
+!>                                      zones -1 to -60
+!>
+!>    @param[out] rx4                  UTM easting (m)
+!>    @param[out] ry4                  UTM northing (m)
+!>
+      SUBROUTINE utm_geo_ll2utm(rlat4, rlon4, UTM_PROJECTION_ZONE, rx4, ry4) &
+                 BIND(C,NAME="utm_geo_ll2utm")
+      USE ISO_C_BINDING
+      IMPLICIT NONE
+      REAL(C_DOUBLE), INTENT(IN) :: rlon4, rlat4
+      INTEGER(C_INT), INTENT(IN) :: UTM_PROJECTION_ZONE
+      REAL(C_DOUBLE), INTENT(OUT) :: rx4, ry4 
+      LOGICAL(C_BOOL), PARAMETER :: SUPPRESS_UTM_PROJECTION = .false.
+      INTEGER(C_INT), PARAMETER :: iway = 0 ! (lat, lon) -> UTM
+      CALL utm_geo(rlon4, rlat4, rx4, ry4, UTM_PROJECTION_ZONE, iway, &
+                   SUPPRESS_UTM_PROJECTION)
+      RETURN
+      END 
+!                                                                                        !
+!========================================================================================!
+!                                                                                        !
+!>    @brief Converts UTMs to latitudes/longitudes
+!>
+!>    @param[in] rx4                  UTM easting (m)
+!>    @param[in] ry4                  UTM northing (m)
+!>    @param[in] UTM_PROJECTION_ZONE  UTM zone
+!>                                      The Northern hemisphere corresponds to
+!>                                      zones +1 to +60.
+!>                                      The Southern hemisphere corresponds to
+!>                                      zones -1 to -60
+!>
+!>    @param[out] rlat4               corresponding latitude (degrees)
+!>    @param[out] rlon4               corresponding longitude (degrees)
+!>    
+      SUBROUTINE utm_geo_utm2ll(rx4, ry4, UTM_PROJECTION_ZONE, rlat4, rlon4) &
+                 BIND(C,NAME="utm_geo_utm2ll")
+      USE ISO_C_BINDING
+      IMPLICIT NONE
+      REAL(C_DOUBLE), INTENT(IN) :: rx4, ry4
+      INTEGER(C_INT), INTENT(IN) :: UTM_PROJECTION_ZONE
+      REAL(C_DOUBLE), INTENT(OUT) :: rlat4, rlon4
+      INTEGER(C_INT), PARAMETER :: iway = 1 ! UTM -> (lat, lon)
+      LOGICAL(C_BOOL), PARAMETER :: SUPPRESS_UTM_PROJECTION = .false.
+      CALL utm_geo(rlon4, rlat4, rx4, ry4, UTM_PROJECTION_ZONE, iway, &
+                   SUPPRESS_UTM_PROJECTION)
+      RETURN
+      END 

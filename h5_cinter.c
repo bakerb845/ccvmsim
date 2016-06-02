@@ -3,6 +3,7 @@
 #include <string.h>
 #include <stdbool.h>
 #include <hdf5.h>
+#include "h5_cinter.h"
 #include "iscl/os/os.h"
 #include "iscl/log/log.h"
 
@@ -16,7 +17,7 @@
  * @author Ben Baker, ISTI
  *
  */
-hid_t h5_open_rdonly(char *flname)
+hid_t h5_open_rdonly(const char *flname)
 {
     const char *fcnm = "h5_open_rdonly\0";
     hid_t file_id;
@@ -37,7 +38,7 @@ hid_t h5_open_rdonly(char *flname)
  * @author Ben Baker, ISTI
  *
  */
-hid_t h5_open_rdwt(char *flname)
+hid_t h5_open_rdwt(const char *flname)
 {
     hid_t file_id;
     file_id = H5Fopen(flname, H5F_ACC_RDWR, H5P_DEFAULT);
@@ -74,7 +75,8 @@ int h5_close(hid_t file_id)
  * @author Ben Baker, ISTI
  *
  */
-int h5_write_array__float(char *dset_name, hid_t file_id, int n, float *x)
+int h5_write_array__float(const char *dset_name, hid_t file_id,
+                          int n, const float *x)
 {
     const char *fcnm = "h5_write_array__float\0";
     char *citem = (char *)calloc(strlen(dset_name)+1, sizeof(char));
@@ -122,7 +124,8 @@ int h5_write_array__float(char *dset_name, hid_t file_id, int n, float *x)
  * @author Ben Baker, ISTI
  *
  */
-int h5_write_array__double(char *dset_name, hid_t file_id, int n, double *x)
+int h5_write_array__double(const char *dset_name, hid_t file_id,
+                           int n, const double *x)
 {
     const char *fcnm = "h5_write_array__double\0";
     char *citem = (char *)calloc(strlen(dset_name)+1, sizeof(char));
@@ -170,7 +173,8 @@ int h5_write_array__double(char *dset_name, hid_t file_id, int n, double *x)
  * @author Ben Baker, ISTI
  *
  */
-int h5_write_array__int(char *dset_name, hid_t file_id, int n, int *x)
+int h5_write_array__int(const char *dset_name, hid_t file_id,
+                        int n, const int *x)
 {
     const char *fcnm = "h5_write_array__int\0";
     char *citem = (char *)calloc(strlen(dset_name)+1, sizeof(char));
@@ -218,8 +222,8 @@ int h5_write_array__int(char *dset_name, hid_t file_id, int n, int *x)
  * @author Ben Baker, ISTI
  *
  */
-int h5_write_array__chars(char *citem_chr, hid_t file_id,
-                          int n, char **c)
+int h5_write_array__chars(const char *citem_chr, hid_t file_id,
+                          int n, const char **c)
 {
     const char *fcnm = "h5_write_array__chars\0";
     char **cout, *citem_hdf5;
@@ -300,7 +304,8 @@ int h5_write_array__chars(char *citem_chr, hid_t file_id,
  * @author Ben Baker, ISTI
  *
  */
-int h5_read_array__double(char *dset_name, hid_t file_id, int nref, double *x)
+int h5_read_array__double(const char *dset_name, hid_t file_id,
+                          int nref, double *x)
 {
     const char *fcnm = "h5_read_array__double\0";
     char *citem = (char *)calloc(strlen(dset_name)+1, sizeof(char));
@@ -366,7 +371,8 @@ int h5_read_array__double(char *dset_name, hid_t file_id, int nref, double *x)
  * @author Ben Baker, ISTI
  *
  */
-int h5_read_array__float(char *dset_name, hid_t file_id, int nref, float *x)
+int h5_read_array__float(const char *dset_name, hid_t file_id,
+                         int nref, float *x)
 {
     const char *fcnm = "h5_read_array__float\0";
     char *citem = (char *)calloc(strlen(dset_name)+1, sizeof(char));
@@ -432,7 +438,8 @@ int h5_read_array__float(char *dset_name, hid_t file_id, int nref, float *x)
  * @author Ben Baker, ISTI
  *
  */
-int h5_read_array__int(char *dset_name, hid_t file_id, int nref, int *x)
+int h5_read_array__int(const char *dset_name, hid_t file_id,
+                       int nref, int *x)
 {
     const char *fcnm = "h5_read_array__int\0";
     char *citem = (char *)calloc(strlen(dset_name)+1,sizeof(char));
@@ -497,8 +504,8 @@ int h5_read_array__int(char *dset_name, hid_t file_id, int nref, int *x)
  * @author Ben Baker, ISTI
  *
  */
-int h5_write_attribute__double(char *citem, hid_t hdf5_id,
-                               int n, double *attr_data)
+int h5_write_attribute__double(const char *citem, hid_t hdf5_id,
+                               int n, const double *attr_data)
 {
     const char *fcnm = "h5_write_attribute__double\0";
     char *citem_hdf5;
@@ -543,8 +550,8 @@ int h5_write_attribute__double(char *citem, hid_t hdf5_id,
  * @author Ben Baker, ISTI
  *
  */
-int h5_write_attribute__int(char *citem, hid_t hdf5_id,
-                            int n, int *attr_data)
+int h5_write_attribute__int(const char *citem, hid_t hdf5_id,
+                            int n, const int *attr_data)
 {
     const char *fcnm = "h5_write_attribute__int\0";
     char *citem_hdf5;
@@ -589,8 +596,8 @@ int h5_write_attribute__int(char *citem, hid_t hdf5_id,
  * @author Ben Baker, ISTI
  *
  */
-int h5_write_attribute__char(char *citem, hid_t hdf5_id,
-                             int n, char **cattr)
+int h5_write_attribute__char(const char *citem, hid_t hdf5_id,
+                             int n, const char **cattr)
 {
     const char *fcnm = "h5_write_attribute__char\0";
     char **cout, *citem_hdf5;
@@ -663,7 +670,7 @@ int h5_write_attribute__char(char *citem, hid_t hdf5_id,
  * @author Ben Baker, ISTI
  *
  */
-int h5_n_group_members(char *group_name, hid_t file_id)
+int h5_n_group_members(const char *group_name, hid_t file_id)
 {
     int nmember;
     char *citem = (char *)calloc(strlen(group_name)+1, sizeof(char));
@@ -694,16 +701,16 @@ int h5_n_group_members(char *group_name, hid_t file_id)
 /*!
  * @brief Gets the size of an array with name citem
  *
- * @param[in] file_id       HDF5 file handle 
  * @param[in] citem         null terminated name of item of which to 
  *                          identify size
+ * @param[in] file_id       HDF5 file handle 
  *
  * @result length of citem
  *
  * @author Ben Baker, ISTI
  *
  */
-int h5_get_array_size(hid_t file_id, char *citem)
+int h5_get_array_size(const char *citem, hid_t file_id)
 {
     const char *fcnm = "h5_get_array_size\0";
     char *citem_hdf5;
@@ -745,7 +752,7 @@ int h5_get_array_size(hid_t file_id, char *citem)
  * @author Ben Baker, ISTI
  *
  */
-bool h5_item_exists(hid_t file_id, char *citem_in)
+bool h5_item_exists(const char *citem_in, hid_t file_id)
 {
     char *citem = (char *)calloc(strlen(citem_in)+1, sizeof(char));
     int lexist;
@@ -772,7 +779,7 @@ bool h5_item_exists(hid_t file_id, char *citem_in)
  * @author Ben Baker, ISTI
  *
  */
-hid_t h5_create_group(hid_t file_id, char *cgroup)
+hid_t h5_create_group(hid_t file_id, const char *cgroup)
 {
     const char *fcnm = "h5_create_group\0";
     char *cgroup_hdf5;
