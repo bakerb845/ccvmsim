@@ -38,5 +38,7 @@
          https://github.com/bakerb845/libiscl
       -  Download and install zlib
       -  Download and install hdf5
-      -  https://drive.google.com/folderview?id=0B_12SLGjHpOzSzl6OWh0TUJ0bGc&usp=sharing 
+      -  If you want to add topography to your mesh download the following
+         netCDF4 topography file:
+         https://drive.google.com/folderview?id=0B_12SLGjHpOzSzl6OWh0TUJ0bGc&usp=sharing 
 
