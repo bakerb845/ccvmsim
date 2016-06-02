@@ -1,9 +1,13 @@
 (1) Overview:
     Included are utilities for quick meshing of the Cascadia Community Velocity
     Model (CCVM).  The goal of these utilities is to make an okay mesh in a
-    short amount of time.
+    short relatively short amount of time.
     
 (2) Workflow:
+
+  (a) Unfortunaely I'm pressed for time.  Basically, you have to:
+       (i)  Get the latest and greatest CVMs from Art Frankel and 
+       (ii) 
 
   (a) cvm_resample:
 
@@ -27,6 +31,10 @@
          
 (3) Installation:
   (a) Dependencies
-      -  Download and install hdf5.  Note this may require an additional
-         library, zlib
+      -  Download and install GSL >= v2
+         http://www.gnu.org/software/gsl/
+      -  Download and install libiscl:
+         https://github.com/bakerb845/libiscl
+      -  Download and install zlib
+      -  Download and install hdf5
 
