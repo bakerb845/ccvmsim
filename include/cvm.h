@@ -13,6 +13,17 @@ extern "C"
 /* Unpack value from binary file */ 
 float unpack_float(char *s, bool lswap);
 double unpack_double(char *s, bool lswap);
+/* Sets the free surface to 0 (m) while keeping the orientation of
+   mesh positive up */
+int cvm_cvm2freeSurfaceToZero(struct mesh_struct *mesh);
+/* Extends bases in CVM so that there are no gaps between layers */
+int cvm_extendBase(int nlay, struct cvm_model_struct *cvm_model);
+/* Utility function for getting number of grid points in regular mesh */
+int cvm_estimateNumberOfGridPoints(int nlay, struct cvm_model_struct *cvm_model,                                   double dx_fem, double dy_fem, double dz_fem,
+                                   int *nx, int *ny, int *nz);
+/* Put CVM material properties onto mesh material properties */
+int cvm_cvm2meshMaterials(int nlay, struct cvm_model_struct *cvm_model,
+                          struct mesh_struct *mesh);
 /* Read CVM binary model */
 int cvmio_readLayer(int lay,
                     struct cvm_parms_struct parms,

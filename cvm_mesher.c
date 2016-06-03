@@ -9,13 +9,6 @@
 #include "cvm.h"
 #include "iscl/interpolate/interpolate.h"
 
-int cvm_cvm2freeSurfaceToZero(struct mesh_struct *mesh);
-int cvm_extendBase(int nlay, struct cvm_model_struct *cvm_model);
-int cvm_estimateNumberOfGridPoints(int nlay, struct cvm_model_struct *cvm_model,
-                                   double dx_fem, double dy_fem, double dz_fem,
-                                   int *nx, int *ny, int *nz);
-int cvm_cvm2meshMaterials(int nlay, struct cvm_model_struct *cvm_model,
-                          struct mesh_struct *mesh);
 /*!
  * @brief Utility function for generating SPECFEM3D meshes directly from the
  *        Cascadia Communicate Velocity Model.  The flow of control is as
@@ -154,15 +147,23 @@ int main()
                                             x0, y0, z0,
                                             mesh.nelem, mesh.element);
         }
-        if (ierr != 0){
+        if (ierr != 0)
+        {
             log_errorF("%s: Error creating regular nodes\n", fcnm);
             goto ERROR;
         }
     
-        }
-    else
+    }
+    else // Mesh which coarsens with depth
     {
-
+        ierr = layeredMesh_driver(parms,
+                                  cvm_model,
+                                  &mesh);
+        if (ierr != 0)
+        {
+            log_errorF("%s: Error creating layered mesh!\n", fcnm);
+            goto ERROR;
+        }
         return 0; 
     }
 /*

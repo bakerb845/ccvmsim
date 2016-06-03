@@ -324,9 +324,11 @@ int mesh_element__getNumberOfAnchorNodes(bool cnum, int nelem,
     nnpg = 0;
     #pragma omp parallel for private(ia, ielem, ngnod), \
      shared(element), reduction(max:nnpg) 
-    for (ielem=0; ielem<nelem; ielem++){
+    for (ielem=0; ielem<nelem; ielem++)
+    {
         ngnod = element[ielem].ngnod;
-        for (ia=0; ia<ngnod; ia++){
+        for (ia=0; ia<ngnod; ia++)
+        {
             nnpg = fmax(nnpg, element[ielem].ien[ia]);
         }
     }

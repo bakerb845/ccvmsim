@@ -7,6 +7,11 @@ extern "C"
 {
 #endif
 
+/* Vertical coarsening mesh prototypes */
+int layeredMesh_driver(struct cvm_parms_struct parms,
+                       struct cvm_model_struct *cvm_model,
+                       struct mesh_struct *mesh);
+
 /* Regular mesh prototypes */
 int regmesh_getNumberOfElements(int nx, int ny, int nz, int *nelem);
 int regmesh_makeHexMeshPointers(int nx, int ny, int nz, 
