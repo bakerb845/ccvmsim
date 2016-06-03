@@ -14,13 +14,15 @@
  */
 void cvm_memory_free__parms(struct cvm_parms_struct *parms)
 {
-    if (parms->dxl_cvm != NULL){free(parms->dxl_cvm);}
-    if (parms->dyl_cvm != NULL){free(parms->dyl_cvm);}
-    if (parms->dzl_cvm != NULL){free(parms->dzl_cvm);}
-    if (parms->z0_cvm  != NULL){free(parms->z0_cvm);}
-    if (parms->nxl_cvm != NULL){free(parms->nxl_cvm);}
-    if (parms->nyl_cvm != NULL){free(parms->nyl_cvm);}
-    if (parms->nzl_cvm != NULL){free(parms->nzl_cvm);}
+    if (parms->dxl_cvm     != NULL){free(parms->dxl_cvm);}
+    if (parms->dyl_cvm     != NULL){free(parms->dyl_cvm);}
+    if (parms->dzl_cvm     != NULL){free(parms->dzl_cvm);}
+    if (parms->z0_cvm      != NULL){free(parms->z0_cvm);}
+    if (parms->zcoarsen    != NULL){free(parms->zcoarsen);}
+    if (parms->nxl_cvm     != NULL){free(parms->nxl_cvm);}
+    if (parms->nyl_cvm     != NULL){free(parms->nyl_cvm);}
+    if (parms->nzl_cvm     != NULL){free(parms->nzl_cvm);}
+    if (parms->coarsen     != NULL){free(parms->coarsen);}
     memset(parms, 0, sizeof(struct cvm_parms_struct));
     return;
 }

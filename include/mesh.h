@@ -103,6 +103,7 @@ int mesh_element__getIEN(int nelem, int len_ien, bool lhomog,
 int mesh_element__getBoundaryIENSize(int nelem,
                                      enum mesh_bc_enum side,
                                      struct mesh_element_struct *element);
+void mesh_template__hexTriple(struct mesh_element_struct *tmplate);
 int meshio_write__NLLGrid(char *dirnm, char *projnm,
                           int nelemx, int nelemy, int nelemz,
                           double x0, double y0,

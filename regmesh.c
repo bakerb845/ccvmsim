@@ -21,15 +21,18 @@ int regmesh_getNumberOfElements(int nx, int ny, int nz, int *nelem)
 {
     const char *fcnm = "regmesh_getNumberOfElements\0";
     *nelem = 0;
-    if (nx < 2){
+    if (nx < 2)
+    {
         log_errorF("%s: Invalid number of x grid points %d\n", fcnm, nx);
         return -1;
     }
-    if (ny < 2){
+    if (ny < 2)
+    {
         log_errorF("%s: Invalid number of x grid points %d\n", fcnm, ny);
         return -1;
     }
-    if (nz < 2){
+    if (nz < 2)
+    {
         log_errorF("%s: Invalid number of x grid points %d\n", fcnm, nz);
         return -1;
     }
@@ -55,7 +58,8 @@ int regmesh_makeHexIEN(int nx, int ny, int nz, int *ien)
     const char *fcnm = "regmesh_makeHexIEN\0";
     int ielem, indx, ix, iy, iz, nnpg_x, nnpg_xy;
     const int ngnod = 8;
-    if (nx < 2 || ny < 2 || nz < 2){
+    if (nx < 2 || ny < 2 || nz < 2)
+    {
         printf("%s: Invalid number of points (nx,ny,nz)=(%d,%d,%d)\n",
                fcnm, nx, ny, nz);
         return -1;
@@ -65,9 +69,12 @@ int regmesh_makeHexIEN(int nx, int ny, int nz, int *ien)
     nnpg_xy = nx*ny;
     // Loop on mesh 
     ielem = 0;
-    for (iz=0; iz<nz-1; iz++){
-        for (iy=0; iy<ny-1; iy++){
-            for (ix=0; ix<nx-1; ix++){
+    for (iz=0; iz<nz-1; iz++)
+    {
+        for (iy=0; iy<ny-1; iy++)
+        {
+            for (ix=0; ix<nx-1; ix++)
+            {
                 // Global anchor nodes
                 indx = ngnod*ielem;
                 ien[indx+0] = nnpg_xy*iz       + nnpg_x*iy       + ix; 
@@ -111,12 +118,15 @@ int regmesh_makeHexMeshPointers(int nx, int ny, int nz,
     int ielem, ierr, ix, iy, iz,
         nelem_ref, nelem_x, nelem_xy, nnpg_x, nnpg_xy;
     ierr = regmesh_getNumberOfElements(nx, ny, nz, &nelem_ref); 
-    if (ierr != 0){
+    if (ierr != 0)
+    {
         log_errorF("%s: Error in size estimation\n", fcnm);
         return -1;
     }
-    if (nelem_ref != nelem){
-        if (nelem_ref > nelem){
+    if (nelem_ref != nelem)
+    {
+        if (nelem_ref > nelem)
+        {
             log_errorF("%s: Invalid space in element\n", fcnm);
             return -1;
         }else{
@@ -130,9 +140,12 @@ int regmesh_makeHexMeshPointers(int nx, int ny, int nz,
     nelem_xy = (nx - 1)*(nz - 1);
     // Loop on mesh 
     ielem = 0;
-    for (iz=0; iz<nz-1; iz++){
-        for (iy=0; iy<ny-1; iy++){
-            for (ix=0; ix<nx-1; ix++){
+    for (iz=0; iz<nz-1; iz++)
+    {
+        for (iy=0; iy<ny-1; iy++)
+        {
+            for (ix=0; ix<nx-1; ix++)
+            {
                 // Element type 
                 element[ielem].type = HEX8;
                 // Global anchor nodes
@@ -151,7 +164,7 @@ int regmesh_makeHexMeshPointers(int nx, int ny, int nz,
                 element[ielem].ien_face[3]  = element[ielem].ien[4];
                 element[ielem].neighbor[0] = ielem - nelem_x;
                 element[ielem].bc[0] = NO_BC;
-                if (iy == 0){element[ielem].neighbor[0] = 0;}
+                if (iy == 0){element[ielem].neighbor[0] =-1;}
                 if (iy == 0){element[ielem].bc[0] = SOUTH_BDRY;}
                 // face 2
                 element[ielem].ien_face[4]  = element[ielem].ien[1];
@@ -160,7 +173,7 @@ int regmesh_makeHexMeshPointers(int nx, int ny, int nz,
                 element[ielem].ien_face[7]  = element[ielem].ien[5];
                 element[ielem].neighbor[1] = ielem + 1;
                 element[ielem].bc[1] = NO_BC;
-                if (ix == nx - 2){element[ielem].neighbor[1] = 0;}
+                if (ix == nx - 2){element[ielem].neighbor[1] =-1;}
                 if (ix == nx - 2){element[ielem].bc[1] = EAST_BDRY;}
                 // face 3
                 element[ielem].ien_face[8]  = element[ielem].ien[2];
@@ -169,7 +182,7 @@ int regmesh_makeHexMeshPointers(int nx, int ny, int nz,
                 element[ielem].ien_face[11] = element[ielem].ien[6];
                 element[ielem].neighbor[2] = ielem + nelem_x;
                 element[ielem].bc[2] = NO_BC;
-                if (iy == ny - 2){element[ielem].neighbor[2] = 0;}
+                if (iy == ny - 2){element[ielem].neighbor[2] =-1;}
                 if (iy == ny - 2){element[ielem].bc[2] = NORTH_BDRY;}
                 // face 4
                 element[ielem].ien_face[12] = element[ielem].ien[0];
@@ -178,7 +191,7 @@ int regmesh_makeHexMeshPointers(int nx, int ny, int nz,
                 element[ielem].ien_face[15] = element[ielem].ien[3];
                 element[ielem].neighbor[3] = ielem - 1;
                 element[ielem].bc[3] = NO_BC;
-                if (ix == 0){element[ielem].neighbor[3] = 0;}
+                if (ix == 0){element[ielem].neighbor[3] =-1;}
                 if (ix == 0){element[ielem].bc[3] = WEST_BDRY;}
                 // face 5
                 element[ielem].ien_face[16] = element[ielem].ien[0];
@@ -187,7 +200,7 @@ int regmesh_makeHexMeshPointers(int nx, int ny, int nz,
                 element[ielem].ien_face[19] = element[ielem].ien[1];
                 element[ielem].neighbor[4] = ielem - nelem_xy;
                 element[ielem].bc[4] = NO_BC;
-                if (iz == 0){element[ielem].neighbor[4] = 0;}
+                if (iz == 0){element[ielem].neighbor[4] =-1;}
                 if (iz == 0){element[ielem].bc[4] = BOTTOM_BDRY;}
                 // face 6
                 element[ielem].ien_face[20] = element[ielem].ien[4];
@@ -196,7 +209,7 @@ int regmesh_makeHexMeshPointers(int nx, int ny, int nz,
                 element[ielem].ien_face[23] = element[ielem].ien[7];
                 element[ielem].neighbor[5] = ielem + nelem_xy;
                 element[ielem].bc[5] = NO_BC; 
-                if (iz == nz - 2){element[ielem].neighbor[5] = 0;}
+                if (iz == nz - 2){element[ielem].neighbor[5] =-1;}
                 if (iz == nz - 2){element[ielem].bc[5] = TOP_BDRY;}
                 // update element counter
                 ielem = ielem + 1;
@@ -204,7 +217,8 @@ int regmesh_makeHexMeshPointers(int nx, int ny, int nz,
         } // Loop on y
     } // Loop on z
     // Fidelity check
-    if (ielem != nelem){
+    if (ielem != nelem)
+    {
         log_errorF("%s: Failed to initialize elements\n", fcnm);
         ierr = 1;
     }
@@ -235,14 +249,16 @@ void regmesh_constantMaterialModel(double vp, double vs, double dens,
                                    struct mesh_element_struct *element)
 {
     int ia, ielem, ngnod;
-    for (ielem=0; ielem<nelem; ielem++){
+    for (ielem=0; ielem<nelem; ielem++)
+    {
         ngnod = element[ielem].ngnod;
         element[ielem].vp   = (double *)calloc(ngnod, sizeof(double));
         element[ielem].vs   = (double *)calloc(ngnod, sizeof(double));
         element[ielem].dens = (double *)calloc(ngnod, sizeof(double));
         element[ielem].Qp = (double *)calloc(ngnod, sizeof(double));
         element[ielem].Qs = (double *)calloc(ngnod, sizeof(double));
-        for (ia=0; ia<ngnod; ia++){
+        for (ia=0; ia<ngnod; ia++)
+        {
             element[ielem].vp[ia] = vp;
             element[ielem].vs[ia] = vs;
             element[ielem].dens[ia] = dens;
@@ -290,17 +306,20 @@ void __regmesh_copyRegularModel(bool lflip, int nx, int ny, int nz,
                                 double *__restrict__ Qsw)
 {
     int indx, inpg, ixy, iz, nnpg, nxy;
-    if (lflip){
+    if (lflip)
+    {
         nxy = nx*ny;
         #pragma omp parallel for \
          firstprivate (nxy), \
          private(indx, inpg), \
          shared(dens, densw, Qp, Qpw, Qs, Qsw, vp, vpw, vs, vsw)
-        for (iz=0; iz<nz; iz++){
+        for (iz=0; iz<nz; iz++)
+        {
             indx = (nz-1-iz)*nxy;
             inpg = iz*nxy;
             #pragma omp simd
-            for (ixy=0; ixy<nxy; ixy++){
+            for (ixy=0; ixy<nxy; ixy++)
+            {
                 vpw[inpg] =   vp[indx];
                 vsw[inpg] =   vs[indx];
                 densw[inpg] = dens[indx];
@@ -310,10 +329,13 @@ void __regmesh_copyRegularModel(bool lflip, int nx, int ny, int nz,
                 inpg = inpg + 1;
             }
         }
-    }else{
+    }
+    else
+    {
         nnpg = nx*ny*nz; 
         #pragma omp simd
-        for (inpg = 0; inpg<nnpg; inpg++){
+        for (inpg = 0; inpg<nnpg; inpg++)
+        {
             vpw[inpg] =   vp[inpg];
             vsw[inpg] =   vs[inpg];
             densw[inpg] = dens[inpg];
@@ -360,20 +382,24 @@ int regmesh_copyRegularModel(bool lflip, int nx, int ny, int nz,
     const char *fcnm = "regmesh_copyMaterial\0";
     double *vpw, *vsw, *Qpw, *Qsw, *densw;
     int ierr;
-    if (nnpg != nx*ny*nz){
+    if (nnpg != nx*ny*nz)
+    {
         printf("%s: Error size inconsistent\n", fcnm);
         return -1;
     }
-    if (nelem < 1){
+    if (nelem < 1)
+    {
         printf("%s: Error no elements\n", fcnm);
         return -1;
     }
-    if (nnpg < 1){
+    if (nnpg < 1)
+    {
         printf("%s: Error no anchor ndoes\n", fcnm);
         return -1;
     }
     // Pack the flipped model 
-    if (lflip){
+    if (lflip)
+    {
         vpw  = (double *)calloc(nnpg, sizeof(double));
         vsw  = (double *)calloc(nnpg, sizeof(double));
         densw = (double *)calloc(nnpg, sizeof(double));
@@ -397,7 +423,9 @@ int regmesh_copyRegularModel(bool lflip, int nx, int ny, int nz,
         densw = NULL;
         Qpw = NULL;
         Qsw = NULL;
-    }else{
+    }
+    else
+    {
         // Fill the model
         ierr = mesh_element__setAnchorNodeProperties(nelem, nnpg,
                                                      vp, vs, dens, Qp, Qs,
@@ -426,15 +454,18 @@ int regmesh_copyRegularModel(bool lflip, int nx, int ny, int nz,
 int regmesh_getNumberOfAnchorNodes(int nx, int ny, int nz, int *nnpg)
 {
     const char *fcnm = "regmesh_getNumberOfAnchorNodes\0";
-    if (nx < 1){
+    if (nx < 1)
+    {
         log_errorF("%s: Invalid number of x grid points %d\n", fcnm, nx);
         return -1;
     }
-    if (ny < 1){
+    if (ny < 1)
+    {
         log_errorF("%s: Invalid number of x grid points %d\n", fcnm, ny);
         return -1;
     }
-    if (nz < 1){
+    if (nz < 1)
+    {
         log_errorF("%s: Invalid number of x grid points %d\n", fcnm, nz);
         return -1;
     }
@@ -471,15 +502,14 @@ void __regmesh_makeRegularNodes(int nx, int ny, int nz,
                                 double *__restrict__ zlocs)
 {
     int inpg, ix, iy, iz, nxy;
-/*
-    #pragma omp parallel for collapse(3) private(inpg, ix, iy, iz) \
-     shared (xlocs, ylocs, zlocs)
-*/
     nxy = nx*ny;
     #pragma omp simd collapse(3)
-    for (iz=0; iz<nz; iz++){
-        for (iy=0; iy<ny; iy++){
-            for (ix=0; ix<nx; ix++){
+    for (iz=0; iz<nz; iz++)
+    {
+        for (iy=0; iy<ny; iy++)
+        {
+            for (ix=0; ix<nx; ix++)
+            {
                 inpg = iz*nxy + iy*nx + ix;
                 xlocs[inpg] = x0 + (double) ix*dx;
                 ylocs[inpg] = y0 + (double) iy*dy;
@@ -524,7 +554,8 @@ int regmesh_makeRegularNodes(int nx, int ny, int nz,
     double *xlocs, *ylocs, *zlocs;
     int ierr, nnpg;
     nnpg = nx*ny*nz;
-    if (nnpg < 1){
+    if (nnpg < 1)
+    {
         printf("%s: Error no elements in mesh\n", fcnm);
         return -1;
     }
@@ -540,7 +571,8 @@ int regmesh_makeRegularNodes(int nx, int ny, int nz,
     ierr = mesh_element__setAnchorNodeLocations(nelem, nnpg,
                                                 xlocs, ylocs, zlocs,
                                                 element); 
-    if (ierr != 0){
+    if (ierr != 0)
+    {
         printf("%s: Error setting (x,y,z) locations on element\n", fcnm);
     }
     // Free space

@@ -45,7 +45,8 @@ int main()
     // Read the ini file
     log_infoF("%s: Reading ini file...\n", fcnm);
     ierr = cvm_readini(projnm, &parms);
-    if (ierr != 0){
+    if (ierr != 0)
+    {
         log_errorF("%s: Error reading ini file\n", fcnm);
         goto ERROR;
     }
@@ -53,10 +54,12 @@ int main()
     log_infoF("%s: Loading the CVM...\n", fcnm);
     cvm_model = (struct cvm_model_struct *)
                 calloc(parms.nlay_cvm, sizeof(struct cvm_model_struct));
-    for (lay=0; lay<parms.nlay_cvm; lay++){
+    for (lay=0; lay<parms.nlay_cvm; lay++)
+    {
         log_infoF("%s: Loading layer: %d\n", fcnm, lay+1);
         ierr = cvmio_readLayer(lay+1, parms, &cvm_model[lay]);
-        if (ierr != 0){
+        if (ierr != 0)
+        {
             log_errorF("%s: There was an error reading the CVM\n", fcnm);
             goto ERROR;
         }
@@ -65,51 +68,124 @@ int main()
     // Extend the model so there are no gaps between layers
     ierr = cvm_extendBase(parms.nlay_cvm, cvm_model);
     // Dump the community velocity model 
-//    log_infoF("%s: Archiving extracted model...\n", fcnm);
-//    ierr = cvmio_write__h5(parms.cvm_outputdir, projnm,
-//                           parms.nlay_cvm, cvm_model);
-
-    for (lay=0; lay<parms.nlay_cvm; lay++){
+/*
+    log_infoF("%s: Archiving extracted model...\n", fcnm);
+    ierr = cvmio_write__h5(parms.cvm_outputdir, projnm,
+                           parms.nlay_cvm, cvm_model);
+*/
+    for (lay=0; lay<parms.nlay_cvm; lay++)
+    {
         // Generate the mesh for this layer and dump it
 
     }
     // Build the mesh
     log_infoF("%s: Generating the mesh...\n", fcnm);
-    ierr = cvm_estimateNumberOfGridPoints(parms.nlay_cvm, cvm_model,
-                                      parms.dx_fem, parms.dy_fem, parms.dz_fem,
-                                      &nx, &ny, &nz);
-    if (ierr != 0){
-        log_errorF("%s: Error estimating regular mesh size\n", fcnm);
-        goto ERROR;
+    if (parms.ncoarsen == 0)
+    {
+        /* TODO: make a regular mesh driver function in regmesh.c */
+        log_infoF("%s: Generating regular mesh...\n", fcnm);
+        ierr = cvm_estimateNumberOfGridPoints(parms.nlay_cvm, cvm_model,
+                                              parms.dx_fem,
+                                              parms.dy_fem,
+                                              parms.dz_fem,
+                                              &nx, &ny, &nz);
+        if (ierr != 0)
+        {
+            log_errorF("%s: Error estimating regular mesh size\n", fcnm);
+            goto ERROR;
+        }
+        log_infoF("%s: Grid points in regular mesh: (%d,%d,%d)\n",
+                  fcnm, nx, ny, nz);
+        // Make a regular mesh; get the number of elements
+        ierr = regmesh_getNumberOfElements(nx, ny, nz, &mesh.nelem);
+        mesh.element = (struct mesh_element_struct *)
+                       calloc(mesh.nelem, sizeof(struct mesh_element_struct));
+        // Because the mesh could be big don't use the redundant storage
+        // method which puts material pointers on each element 
+        mesh.lptr_only = true;
+        // Homogeneous hex mesh
+        mesh.lhomog = true;
+        // Set the pointers
+        log_infoF("%s: Setting regular mesh pointers...\n", fcnm);
+        ierr = mesh_element_memory__allocateIntegerPointers(HEX8, mesh.nelem,
+                                                            mesh.element);
+        if (ierr != 0)
+        {
+            log_errorF("%s: Failed to set memory for pointers\n", fcnm);
+            goto ERROR;
+        }
+        ierr = regmesh_makeHexMeshPointers(nx, ny, nz, mesh.nelem,
+                                           mesh.element);
+        if (ierr != 0)
+        {
+            log_errorF("%s: Error setting pointers!\n", fcnm);
+            goto ERROR;
+        }
+        // Set the anchor node locations
+        log_infoF("%s: Setting the regular anchor node locations...\n", fcnm);
+        ierr = regmesh_getNumberOfAnchorNodes(nx, ny, nz, &mesh.nnpg);
+        if (ierr != 0 || mesh.nnpg < 1)
+        {
+            if (mesh.nnpg < 1){ierr = 1;}
+            log_infoF("%s: Failed to get number of anchor nodes\n", fcnm);
+            goto ERROR;
+        }
+        x0 = cvm_model[0].x0;
+        y0 = cvm_model[0].y0;
+        z0 = 0.0;
+        if (mesh.lptr_only)
+        {
+            mesh.xlocs = (double *)calloc(mesh.nnpg, sizeof(double));
+            mesh.ylocs = (double *)calloc(mesh.nnpg, sizeof(double));
+            mesh.zlocs = (double *)calloc(mesh.nnpg, sizeof(double));
+            __regmesh_makeRegularNodes(nx, ny, nz,
+                                       parms.dx_fem, parms.dy_fem, parms.dz_fem,
+                                       x0, y0, z0,
+                                       mesh.xlocs,
+                                       mesh.ylocs,
+                                       mesh.zlocs);
+        }
+        else
+        {
+            ierr = regmesh_makeRegularNodes(nx, ny, nz,
+                                            parms.dx_fem,
+                                            parms.dy_fem,
+                                            parms.dz_fem,
+                                            x0, y0, z0,
+                                            mesh.nelem, mesh.element);
+        }
+        if (ierr != 0){
+            log_errorF("%s: Error creating regular nodes\n", fcnm);
+            goto ERROR;
+        }
+    
+        }
+    else
+    {
+
+        return 0; 
     }
-    log_infoF("%s: Grid points in regular mesh: (%d,%d,%d)\n",
-              fcnm, nx, ny, nz);
-    // Make a regular mesh; get the number of elements
-    ierr = regmesh_getNumberOfElements(nx, ny, nz, &mesh.nelem);
-    mesh.element = (struct mesh_element_struct *)
-                   calloc(mesh.nelem, sizeof(struct mesh_element_struct));
-    // Because the mesh could be big don't use the redundant storage
-    // method which puts material pointers on each element 
-    mesh.lptr_only = true;
-    // Homogeneous hex mesh
-    mesh.lhomog = true;
+/*
     // Set the pointers 
     log_infoF("%s: Setting mesh pointers...\n", fcnm);
     ierr = mesh_element_memory__allocateIntegerPointers(HEX8, mesh.nelem,
                                                         mesh.element);
-    if (ierr != 0){
+    if (ierr != 0)
+    {
         log_errorF("%s: Failed to set memory for pointers\n", fcnm);
         goto ERROR;
     }
     ierr = regmesh_makeHexMeshPointers(nx, ny, nz, mesh.nelem, mesh.element);
-    if (ierr != 0){
+    if (ierr != 0)
+    {
         log_errorF("%s: Error setting pointers!\n", fcnm);
         goto ERROR;
     }
     // Set the anchor node locations
     log_infoF("%s: Setting the anchor node locations...\n", fcnm);
     ierr = regmesh_getNumberOfAnchorNodes(nx, ny, nz, &mesh.nnpg);
-    if (ierr != 0 || mesh.nnpg < 1){
+    if (ierr != 0 || mesh.nnpg < 1)
+    {
         if (mesh.nnpg < 1){ierr = 1;}
         log_infoF("%s: Failed to get number of anchor nodes\n", fcnm);
         goto ERROR;
@@ -140,6 +216,7 @@ int main()
             goto ERROR;
         }
     }
+*/
     // Set the material properties (put this before the topography deformation)
     log_infoF("%s: Setting materials...\n", fcnm);
     ierr = cvm_cvm2meshMaterials(parms.nlay_cvm, cvm_model, &mesh);
@@ -446,19 +523,22 @@ int cvm_estimateNumberOfGridPoints(int nlay, struct cvm_model_struct *cvm_model,
     if ((double) (*ny - 1)*dy_fem > yoff){*ny = *ny - 1;}
     nx0 = *nx;
     ny0 = *ny;
-    for (lay=1; lay<nlay; lay++){
+    for (lay=1; lay<nlay; lay++)
+    {
         xoff = (double) (cvm_model[lay].nx - 1)*cvm_model[lay].dx;
         yoff = (double) (cvm_model[lay].ny - 1)*cvm_model[lay].dy;
         *nx = (int) (xoff/dx_fem + 0.5) + 1;
         if ((double) (*nx - 1)*dx_fem > xoff){*nx = *nx - 1;}
         *ny = (int) (yoff/dy_fem + 0.5) + 1;
         if ((double) (*ny - 1)*dy_fem > yoff){*ny = *ny - 1;}
-        if (*nx != nx0){
+        if (*nx != nx0)
+        {
             log_errorF("%s: There is an inconsistency in x\n", fcnm);
             ierr = 1;
             break;
         }
-        if (*ny != ny0){
+        if (*ny != ny0)
+        {
             log_errorF("%s: There is an inconsistency in y\n", fcnm);
             ierr = 1;
             break;
@@ -472,7 +552,7 @@ int cvm_estimateNumberOfGridPoints(int nlay, struct cvm_model_struct *cvm_model,
 }
 //============================================================================//
 /*!
- * @brief Modifies the mesh so that the free surface is at 0.
+ * @brief Modifies the mesh so that the free surface is at z=0.
  *
  * @param[inout] mesh      on input holds the mesh z locations where the free
  *                         surface is located at max(mesh->zlocs)
@@ -489,13 +569,15 @@ int cvm_cvm2freeSurfaceToZero(struct mesh_struct *mesh)
     // Get the max/min of the mesh
     zmax_mesh = mesh->zlocs[0];
     zmin_mesh = mesh->zlocs[0];
-    for (inpg=1; inpg<mesh->nnpg; inpg++){
+    for (inpg=1; inpg<mesh->nnpg; inpg++)
+    {
         zmax_mesh = fmax(mesh->zlocs[inpg], zmax_mesh);
         zmin_mesh = fmin(mesh->zlocs[inpg], zmin_mesh);
     }
     log_infoF("%s: Min and max points in mesh: %f %f\n",
               fcnm, zmin_mesh, zmax_mesh);
-    for (inpg=0; inpg<mesh->nnpg; inpg++){
+    for (inpg=0; inpg<mesh->nnpg; inpg++)
+    {
         mesh->zlocs[inpg] = mesh->zlocs[inpg] - zmax_mesh;
     }
     return 0;
@@ -595,14 +677,17 @@ int cvm_cvm2meshMaterials(int nlay, struct cvm_model_struct *cvm_model,
         zmin = z[0] - eps;
         zmax = z[nz-1] + eps;
         nxyzq = 0;
-        for (inpg=0; inpg<mesh->nnpg; inpg++){
+        for (inpg=0; inpg<mesh->nnpg; inpg++)
+        {
             if (linit[inpg]){continue;}
-            if (zmin <= mesh->zlocs[inpg] && mesh->zlocs[inpg] <= zmax){
+            if (zmin <= mesh->zlocs[inpg] && mesh->zlocs[inpg] <= zmax)
+            {
                 nxyzq = nxyzq + 1;
             }
         }
         // There are points to interpolate so interpolate them
-        if (nxyzq > 0){
+        if (nxyzq > 0)
+        {
             log_infoF("%s: Interpolating %d points in layer %d...\n",
                       fcnm, nxyzq, lay+1);
             idest = (int *)calloc(nxyzq, sizeof(int));
@@ -734,12 +819,15 @@ int cvm_cvm2meshMaterials(int nlay, struct cvm_model_struct *cvm_model,
     }
     // Check for un-initialized nodes
     if (ierr == 0){
-        for (inpg=0; inpg<mesh->nnpg; inpg++){
-            if (!linit[inpg]){
+        for (inpg=0; inpg<mesh->nnpg; inpg++)
+        {
+            if (!linit[inpg])
+            {
                 ierr = ierr + 1;
             }
         }
-        if (ierr > 0){
+        if (ierr > 0)
+        {
             log_infoF("%s: Failed to initialize %d points\n", fcnm, ierr);
             ierr = 1;
         }

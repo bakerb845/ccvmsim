@@ -24,11 +24,11 @@
 int cvm_readini(char *projnm, struct cvm_parms_struct *parms)
 {
     const char *fcnm = "cvm_readini\0";
-    char ini_file[PATH_MAX];
+    char ini_file[PATH_MAX], scoarsen[64];
     dictionary *ini;
     const char *s;
     double lat1, lon1, utmx, utmy, xoff_max, yoff_max;
-    int k;
+    int ic, ictype, k;
     int iway = 1; // UTM -> (lat,lon)
     bool suppress = false; // don't suprress the UTM computation
     //------------------------------------------------------------------------//
@@ -54,7 +54,8 @@ int cvm_readini(char *projnm, struct cvm_parms_struct *parms)
     parms->nzl_cvm = (int *)calloc(parms->nlay_cvm, sizeof(int));
     xoff_max = (double) (nxl_cvm[0]-1)*dxl_cvm[0];
     yoff_max = (double) (nyl_cvm[0]-1)*dyl_cvm[0];
-    for (k=0; k<nlay_cvm; k++){
+    for (k=0; k<nlay_cvm; k++)
+    {
         parms->dxl_cvm[k] = dxl_cvm[k];
         parms->dyl_cvm[k] = dyl_cvm[k];
         parms->dzl_cvm[k] = dzl_cvm[k];
@@ -90,39 +91,47 @@ int cvm_readini(char *projnm, struct cvm_parms_struct *parms)
     parms->lon1_cvm = fmax(parms->lon1_cvm, lon1);
     // have ini parser load the ini file
     ini = iniparser_load(ini_file);
-    if (ini == NULL){
+    if (ini == NULL)
+    {
         log_errorF("%s: Cannot parse ini file\n", fcnm);
         return -1;
     }
     s = iniparser_getstring(ini, "cvm_h5repack:cvm_moddir\0", "./\0");
     strcpy(parms->cvm_moddir, s);
-    if (!os_path_isdir(parms->cvm_moddir)){
+    if (!os_path_isdir(parms->cvm_moddir))
+    {
         log_errorF("%s: CVM directory doesn't exist\n", fcnm);
         return -1;
     }
     // get the mesh directory
     strcpy(parms->cvm_outputdir, "./\0");
     s = iniparser_getstring(ini, "cvm_h5repack:cvm_outputdir", "./\0");
-    if (s != NULL){
-        if (strlen(s) > 0){ 
+    if (s != NULL)
+    {
+        if (strlen(s) > 0)
+        {
             memset(parms->cvm_outputdir, 0, sizeof(parms->cvm_outputdir));
             strcpy(parms->cvm_outputdir, s); 
         }
     }   
-    if (os_makedirs(parms->cvm_outputdir) != 0){ 
+    if (os_makedirs(parms->cvm_outputdir) != 0)
+    {
         log_errorF("%s: Failed to make cvm output directory\n", fcnm);
         return -1; 
     }
     // get the nll directory
     strcpy(parms->nll_outputdir, "./\0");
     s = iniparser_getstring(ini, "cvm_h5repack:nll_outputdir", "./\0");
-    if (s != NULL){
-        if (strlen(s) > 0){
+    if (s != NULL)
+    {
+        if (strlen(s) > 0)
+        {
             memset(parms->nll_outputdir, 0, sizeof(parms->nll_outputdir));
             strcpy(parms->nll_outputdir, s); 
         }
     }
-    if (os_makedirs(parms->nll_outputdir) != 0){
+    if (os_makedirs(parms->nll_outputdir) != 0)
+    {
         log_errorF("%s: Failed to make nll output directory\n", fcnm);
         return -1; 
     }
@@ -140,33 +149,39 @@ int cvm_readini(char *projnm, struct cvm_parms_struct *parms)
                                       z0_cvm[3]*1.e-3);
     if (parms->lon0 < 0.0){parms->lon0 = parms->lon0 + 360.0;}
     if (parms->lon1 < 0.0){parms->lon1 = parms->lon1 + 360.0;}
-    if (parms->lat0 < parms->lat0_cvm){
+    if (parms->lat0 < parms->lat0_cvm)
+    {
         log_warnF("%s: Changing minimum latitude to %f\n",
                   fcnm, parms->lat0_cvm);
         parms->lat0 = parms->lat0_cvm;
     }
-    if (parms->lon0 < parms->lon0_cvm){
+    if (parms->lon0 < parms->lon0_cvm)
+    {
         log_warnF("%s: Changing minimum longitude to %f\n",
                   fcnm, parms->lon0_cvm);
         parms->lon0 = parms->lon0_cvm;
     }
-    if (parms->lat1 > parms->lat1_cvm){
+    if (parms->lat1 > parms->lat1_cvm)
+    {
         log_warnF("%s: Changing maximum latitude to %f\n",
                   fcnm, parms->lat1_cvm);
         parms->lat1 = parms->lat1_cvm;
     }
-    if (parms->lon1 > parms->lon1_cvm){
+    if (parms->lon1 > parms->lon1_cvm)
+    {
         log_warnF("%s: Changing maximum longitude to %f\n",
                   fcnm , parms->lon1_cvm);
         parms->lon1 = parms->lon1_cvm;
     } 
     parms->zmin = parms->zmin*1.e3; // convert to m
     parms->zmax = parms->zmax*1.e3; // convert to m
-    if (parms->zmin != 0.0){
+    if (parms->zmin != 0.0)
+    {
         log_errorF("%s: Error haven't done zmin > 0.0 yet\n", fcnm);
         return -1;
     }
-    if (parms->zmax < parms->zmin){
+    if (parms->zmax < parms->zmin)
+    {
         log_errorF("%s: Error zmax can't be shallower than zmin\n", fcnm);
         return -1;
     }
@@ -187,7 +202,8 @@ int cvm_readini(char *projnm, struct cvm_parms_struct *parms)
     parms->vp_max = 0.0;
     parms->lthresh_vp
          = iniparser_getboolean(ini, "cvm_h5repack:lthresh_vp\0", false);
-    if (parms->lthresh_vp){
+    if (parms->lthresh_vp)
+    {
         parms->vp_min = iniparser_getdouble(ini,
                                             "cvm_h5repack:vp_min\0", 1.e20);
         parms->vp_max = iniparser_getdouble(ini,
@@ -197,7 +213,8 @@ int cvm_readini(char *projnm, struct cvm_parms_struct *parms)
     parms->vs_min = 0.0;
     parms->lthresh_vs
         = iniparser_getboolean(ini, "cvm_h5repack:lthresh_vs\0", false);
-    if (parms->lthresh_vs){
+    if (parms->lthresh_vs)
+    {
         parms->vs_min = iniparser_getdouble(ini, 
                                             "cvm_h5repack:vs_min\0", 1.e20);
         parms->vs_max = iniparser_getdouble(ini, 
@@ -207,7 +224,8 @@ int cvm_readini(char *projnm, struct cvm_parms_struct *parms)
     parms->dens_max = 0.0;
     parms->lthresh_dens
         = iniparser_getboolean(ini, "cvm_h5repack:lthresh_dens\0", false);
-    if (parms->lthresh_dens){
+    if (parms->lthresh_dens)
+    {
         parms->dens_min = iniparser_getdouble(ini, 
                                               "cvm_h5repack:dens_min\0", 1.e20);
         parms->dens_max = iniparser_getdouble(ini, 
@@ -217,7 +235,8 @@ int cvm_readini(char *projnm, struct cvm_parms_struct *parms)
     parms->vpvs_max = 1.71;
     parms->lthresh_vpvs
        = iniparser_getboolean(ini, "cvm_h5repack:lthresh_vpvs\0", false);
-    if (parms->lthresh_vpvs){
+    if (parms->lthresh_vpvs)
+    {
         parms->vpvs_min = iniparser_getdouble(ini,
                                               "cvm_h5repack:vpvs_min\0", 1.71);
         parms->vpvs_max = iniparser_getdouble(ini,
@@ -226,7 +245,8 @@ int cvm_readini(char *projnm, struct cvm_parms_struct *parms)
     // set the Vp from the Vs
     parms->vpvs_ratio = iniparser_getdouble(ini, "cvm_h5repack:vpvs_ratio\0",
                                             1.71);
-    if (parms->vpvs_ratio <= 1.0){
+    if (parms->vpvs_ratio <= 1.0)
+    {
         log_errorF("%s: Invalid vpvs ratio %f\n", fcnm, parms->vpvs_ratio);
         return -1;
     }
@@ -248,10 +268,32 @@ int cvm_readini(char *projnm, struct cvm_parms_struct *parms)
             strcpy(parms->mesh_outputdir, s);
         }
     }
-    if (os_makedirs(parms->mesh_outputdir) != 0){
+    if (os_makedirs(parms->mesh_outputdir) != 0)
+    {
         log_errorF("%s: Failed to make mesh output directory\n", fcnm);
         return -1;
     }
+    // coarsening?
+    parms->ncoarsen = iniparser_getint(ini, "cvm_mesh:ncoarsen\0", 0);
+    if (parms->ncoarsen > 0)
+    {
+        parms->zcoarsen = (double *)calloc(parms->ncoarsen, sizeof(double));
+        parms->coarsen = (enum coarsen_type *)
+                         calloc(parms->ncoarsen, sizeof(enum coarsen_type));
+        for (ic=0; ic<parms->ncoarsen; ic++)
+        {
+            memset(scoarsen, 0, sizeof(scoarsen));
+            sprintf(scoarsen, "cvm_mesh:coarsen_%d", ic+1);
+            s = iniparser_getstring(ini, scoarsen, NULL);
+            if (s == NULL)
+            {
+                log_errorF("%s: Error reading coarsening layer: %d\n",
+                           fcnm, ic+1);
+            }
+            sscanf(s, "%lf %d", &parms->zcoarsen[ic], &ictype);
+            parms->coarsen[ic] = ictype; 
+        }
+    } 
     parms->dx_fem = iniparser_getdouble(ini, "cvm_mesh:dx_fem\0", 2500.0);
     if (parms->dx_fem <= 0.0)
     {

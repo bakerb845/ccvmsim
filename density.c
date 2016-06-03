@@ -58,17 +58,23 @@ double density_DarcyMcphee(double Vp_ms)
     double rho, pgrcm3, vkmps;
     int ij;
     vkmps = Vp_ms*1.e-3; // Convert to km/s
-    if (vkmps >= 5.93){
+    if (vkmps >= 5.93)
+    {
         pgrcm3 = 0.9893 + 0.2891*vkmps;
-    }else if (vkmps >= 5.5 && vkmps < 5.93){
+    }
+    else if (vkmps >= 5.5 && vkmps < 5.93)
+    {
         pgrcm3 = 0.0;
-        for (ij=1; ij<=8; ij++){
+        for (ij=1; ij<=8; ij++)
+        {
             pgrcm3 = (pgrcm3 + dcoef[9-ij])*vkmps;
         }
         pgrcm3 = pgrcm3 + dcoef[0];
-    }else{
+    }
+    else
+    {
         pgrcm3 = 1.7407*pow(vkmps, 0.25);
-    } 
+    }
     rho = pgrcm3*1000.;
     return rho;
 }

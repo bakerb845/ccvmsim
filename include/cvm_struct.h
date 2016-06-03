@@ -10,6 +10,13 @@ enum mesh_element_type
     TET8 = 4         /*!< Quadratic tetrahedron */
 };
 
+enum coarsen_type
+{
+    COARSEN_NONE = 1,   /*!< No coarsening */
+    COARSEN_DOUBLE = 2, /*!< Doubling layer */
+    COARSEN_TRIPLE = 3  /*!< Tripling layer */
+};
+
 enum mesh_bc_enum
 {
     NO_BC = 0,        /*!< This is not a boundary condition */
@@ -106,6 +113,8 @@ struct cvm_parms_struct
     double *dxl_cvm;             /*!< CVM grid spacing (m) in x [nlay_cvm] */
     double *dyl_cvm;             /*!< CVM grid spacing (m) in y [nlay_cvm] */
     double *dzl_cvm;             /*!< CVM grid spacing (m) in z [nlay_cvm] */
+    double *zcoarsen;            /*!< Interfaces at which to coarsen mesh
+                                      (m). [ncoarsen]  */
     double *z0_cvm;              /*!< CVM layer bottom interfaces (m) 
                                       [nlay_cvm] */
     int *nxl_cvm;                /*!< CVM x grid points in each layer
@@ -114,6 +123,8 @@ struct cvm_parms_struct
                                       [nlay_cvm] */
     int *nzl_cvm;                /*!< CVM z grid points in each layer
                                       [nlay_cvm] */
+    enum coarsen_type *coarsen;  /*!< Refinement type for layer i
+                                            to layer i + 1 [ncoarsen]*/
     double dx_fem;               /*!< Mesh grid spacing in x in top layer (m) */
     double dy_fem;               /*!< Mesh grid spacing in y in top layer (m) */
     double dz_fem;               /*!< Mesh grid spacing in z in top layer (m) */
@@ -154,6 +165,7 @@ struct cvm_parms_struct
                                       which the mesh deformation will no longer
                                       be linearly interpolated to mimic
                                       topography */
+    int ncoarsen;                /*!< Number of coarsening interfaces */
     int utmzone_cvm;             /*!< CVM utm zone - should be 10 */
     int nlay_cvm;                /*!< Number of layers in CVM */
     int utm_zone;                /*!< UTM zone for unpacking topo30 - 

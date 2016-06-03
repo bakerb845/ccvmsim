@@ -66,9 +66,12 @@ int cvmio_readLayer(int lay,
     memset(vsfl, 0, sizeof(vsfl));
     strcpy(root, parms.cvm_moddir); 
     lenos = strlen(root);
-    if (lenos > 0){
+    if (lenos > 0)
+    {
         if (root[lenos-1] != '/'){strcat(root, "/\0");}
-    }else{
+    }
+    else
+    {
         strcpy(root, "./\0");
     }
     // Vp file name
@@ -91,22 +94,26 @@ int cvmio_readLayer(int lay,
     nxyz = nx*ny*nz;
     // Read the Vp model
     model_vp = cvmio_readBinaryFile(vpfl, &nbytes);
-    if (nbytes < 1){
+    if (nbytes < 1)
+    {
         log_errorF("%s: Error loading file %s\n", fcnm, vpfl);
         return -1;
     }
-    if (nbytes != 4*nxyz){
+    if (nbytes != 4*nxyz)
+    {
         log_errorF("%s: Failed to estimate byte size for Vp %d %d\n",
                    fcnm, nbytes, 4*nxyz);
         return -1; 
     }
     // Read the Vs model
     model_vs = cvmio_readBinaryFile(vsfl, &nbytes);
-    if (nbytes < 1){
+    if (nbytes < 1)
+    {
         log_errorF("%s: Error loading file %s\n", fcnm, vsfl);
         return -1;
     }
-    if (nbytes != 4*nxyz){
+    if (nbytes != 4*nxyz)
+    {
         log_errorF("%s: Failed to estimate byte size for Vs %d %d\n",
                    fcnm, nbytes, 4*nxyz);
         return -1;
@@ -123,43 +130,53 @@ int cvmio_readLayer(int lay,
     // Get the lower left corner
     ixl = (int) (common_mult/parms.dxl_cvm[lay-1] + 0.5);
     iyl = (int) (common_mult/parms.dyl_cvm[lay-1] + 0.5);
-    for (ixmin=0; ixmin<parms.nxl_cvm[lay-1]; ixmin=ixmin+ixl){
+    for (ixmin=0; ixmin<parms.nxl_cvm[lay-1]; ixmin=ixmin+ixl)
+    {
         utmx = parms.utm_x0_cvm + (double) (ixmin + ixl)*parms.dxl_cvm[lay-1];
         if (utmx > parms.utm_x0){break;}
     }
-    for (iymin=0; iymin<parms.nyl_cvm[lay-1]; iymin=iymin+iyl){
+    for (iymin=0; iymin<parms.nyl_cvm[lay-1]; iymin=iymin+iyl)
+    {
         utmy = parms.utm_y0_cvm + (double) (iymin + iyl)*parms.dyl_cvm[lay-1];
         if (utmy > parms.utm_y0){break;}
     }
-    for (ixmax=ixmin; ixmax<parms.nxl_cvm[lay-1]; ixmax=ixmax+ixl){
+    for (ixmax=ixmin; ixmax<parms.nxl_cvm[lay-1]; ixmax=ixmax+ixl)
+    {
         utmx = parms.utm_x0_cvm + (double) ixmax*parms.dxl_cvm[lay-1];
         if (utmx > parms.utm_x1){break;}
     }
-    for (iymax=iymin; iymax<parms.nyl_cvm[lay-1]; iymax=iymax+iyl){
+    for (iymax=iymin; iymax<parms.nyl_cvm[lay-1]; iymax=iymax+iyl)
+    {
         utmy = parms.utm_y0_cvm + (double) iymax*parms.dyl_cvm[lay-1];
         if (utmy > parms.utm_y1){break;}
     }
-    if (ixmin > parms.nxl_cvm[lay-1] || ixmax > parms.nxl_cvm[lay-1]){
+    if (ixmin > parms.nxl_cvm[lay-1] || ixmax > parms.nxl_cvm[lay-1])
+    {
         log_errorF("%s: Error computing ixmin/ixmax %d %d\n",
         fcnm, iymin, iymax);
         return -1; 
     }
-    if (iymin > parms.nyl_cvm[lay-1] || iymax > parms.nyl_cvm[lay-1]){
+    if (iymin > parms.nyl_cvm[lay-1] || iymax > parms.nyl_cvm[lay-1])
+    {
         log_errorF("%s: Error computing iymin/iymax %d %d\n",
                    fcnm, iymin, iymax);
         return -1;
     }
     // Figure out the max depth (we need the shallowest layers)
-    if (parms.zmin > 0.0){
+    if (parms.zmin > 0.0)
+    {
         log_warnF("%s: I'm skipping the zmin issue for now\n", fcnm);
     }
     zlay_thickness = (double) (parms.nzl_cvm[lay-1] - 1)*parms.dzl_cvm[lay-1];
     //if (lay == 3 && parms.zmax < parms.z0_cvm[lay-1]){
-    if (parms.zmax < parms.z0_cvm[lay-1] + zlay_thickness){
+    if (parms.zmax < parms.z0_cvm[lay-1] + zlay_thickness)
+    {
         zbeg = parms.z0_cvm[lay-1];
-        for (izmax=izmin; izmax<parms.nzl_cvm[lay-1]; izmax++){
+        for (izmax=izmin; izmax<parms.nzl_cvm[lay-1]; izmax++)
+        {
             z = zbeg + (double) izmax*parms.dzl_cvm[lay-1];
-            if (z > parms.zmax){
+            if (z > parms.zmax)
+            {
                 break;
             }
         }
@@ -189,7 +206,9 @@ int cvmio_readLayer(int lay,
     ny_mod = iymax - iymin + 1;
     nz_mod = izmax - izmin + 1;
     cvm_model->npts = nx_mod*ny_mod*nz_mod;
-    if (cvm_model->npts < 8){ //2 x 2 x 2
+    // 2 x 2 x 2 is bad
+    if (cvm_model->npts < 8)
+    {
         log_errorF("%s: Error insufficient number of points in model\n", fcnm);
         return -1;
     }
@@ -218,11 +237,14 @@ int cvmio_readLayer(int lay,
     log_infoF("%s: Unpacking models...\n", fcnm);
     indx_mod = 0;
     jz = 0;
-    for (iz=izmin; iz<=izmax; iz++){
+    for (iz=izmin; iz<=izmax; iz++)
+    {
         jy = 0;
-        for (iy=iymin; iy<=iymax; iy++){
+        for (iy=iymin; iy<=iymax; iy++)
+        {
             jx = 0;
-            for (ix=ixmin; ix<=ixmax; ix++){
+            for (ix=ixmin; ix<=ixmax; ix++)
+            {
                 indx_cvm = nx*ny*(nz - 1 - jz) + nx*iy + ix;
                 pval = unpack_float(&model_vp[4*indx_cvm], lswap);
                 sval = unpack_float(&model_vs[4*indx_cvm], lswap);
@@ -254,74 +276,94 @@ int cvmio_readLayer(int lay,
         return -1;
     } 
     // Apply clipping
-    if (parms.lthresh_vp){
+    if (parms.lthresh_vp)
+    {
         log_infoF("%s: Clipping Vp to range [%f, %f]\n",
                   fcnm, parms.vp_min, parms.vp_max);
         #pragma omp simd
-        for (indx_mod=0; indx_mod<cvm_model->npts; indx_mod++){
+        for (indx_mod=0; indx_mod<cvm_model->npts; indx_mod++)
+        {
             cvm_model->vp[indx_mod] = fmax(cvm_model->vp[indx_mod],
                                            parms.vp_min);
             cvm_model->vp[indx_mod] = fmin(cvm_model->vp[indx_mod],
                                            parms.vp_max);
         }
     }
-    if (parms.lthresh_vs){
+    if (parms.lthresh_vs)
+    {
         log_infoF("%s: Clipping Vs to range [%f, %f]\n",
                   fcnm, parms.vs_min, parms.vs_max);
         #pragma omp simd
-        for (indx_mod=0; indx_mod<cvm_model->npts; indx_mod++){
+        for (indx_mod=0; indx_mod<cvm_model->npts; indx_mod++)
+        {
             cvm_model->vs[indx_mod] = fmax(cvm_model->vs[indx_mod],
                                            parms.vs_min);
             cvm_model->vs[indx_mod] = fmin(cvm_model->vs[indx_mod],
                                            parms.vs_max);
         }
     }
-    if (parms.setvp_from_vs || parms.setvs_from_vp){
+    if (parms.setvp_from_vs || parms.setvs_from_vp)
+    {
         if (parms.setvp_from_vs){
             log_infoF("%s: Setting Vp = %f*Vs\n", fcnm, parms.vpvs_ratio);
             vpvs = parms.vpvs_ratio;
             #pragma omp simd
-            for (indx_mod=0; indx_mod<cvm_model->npts; indx_mod++){
+            for (indx_mod=0; indx_mod<cvm_model->npts; indx_mod++)
+            {
                 cvm_model->vp[indx_mod] = cvm_model->vs[indx_mod]*vpvs;
             }
-        }else{
+        }
+        else
+        {
             log_infoF("%s: Setting Vs = Vp/%f\n", fcnm, parms.vpvs_ratio);
             vsvp = 1.0/parms.vpvs_ratio;
             #pragma omp simd
-            for (indx_mod=0; indx_mod<cvm_model->npts; indx_mod++){
+            for (indx_mod=0; indx_mod<cvm_model->npts; indx_mod++)
+            {
                 cvm_model->vs[indx_mod] = cvm_model->vp[indx_mod]*vsvp;
             }
         } 
     // Could be thresholding
-    }else{
-        if (parms.lthresh_vpvs){
+    }
+    else
+    {
+        if (parms.lthresh_vpvs)
+        {
             log_infoF("%s: Clipping Vp/Vs to range [%f, %f]\n",
                       fcnm, parms.vpvs_min, parms.vpvs_max);
             // Thresholded on Vs so set Vp from that
-            if (parms.lthresh_vs && !parms.lthresh_vp){
+            if (parms.lthresh_vs && !parms.lthresh_vp)
+            {
                 log_infoF("%s: Clipping sets Vp from Vs\n", fcnm);
                 #pragma omp simd
-                for (indx_mod=0; indx_mod<cvm_model->npts; indx_mod++){
+                for (indx_mod=0; indx_mod<cvm_model->npts; indx_mod++)
+                {
                      vpvs = cvm_model->vp[indx_mod]/cvm_model->vs[indx_mod];
-                     if (vpvs < parms.vpvs_min){
+                     if (vpvs < parms.vpvs_min)
+                     {
                          cvm_model->vp[indx_mod] = cvm_model->vs[indx_mod]
                                                   *parms.vpvs_min;
                      }
-                     if (vpvs > parms.vpvs_max){
+                     if (vpvs > parms.vpvs_max)
+                     {
                          cvm_model->vp[indx_mod] = cvm_model->vs[indx_mod]
                                                   *parms.vpvs_max;
                      }
                 }
-            }else{
+            }
+            else
+            {
                 log_infoF("%s: Clipping sets Vs from Vp\n", fcnm);
                 #pragma omp simd
                 for (indx_mod=0; indx_mod<cvm_model->npts; indx_mod++){
                     vpvs = cvm_model->vp[indx_mod]/cvm_model->vs[indx_mod];
-                    if (vpvs < parms.vpvs_min){
+                    if (vpvs < parms.vpvs_min)
+                    {
                         cvm_model->vs[indx_mod] =  cvm_model->vp[indx_mod]
                                                   /parms.vpvs_min;
                     }
-                    if (vpvs > parms.vpvs_max){
+                    if (vpvs > parms.vpvs_max)
+                    {
                         cvm_model->vs[indx_mod] =  cvm_model->vp[indx_mod]
                                                   /parms.vpvs_max;
                     }
@@ -332,16 +374,19 @@ int cvmio_readLayer(int lay,
     // Compute the density
     log_infoF("%s: Computing density...\n", fcnm);
     #pragma omp simd
-    for (indx_mod=0; indx_mod<cvm_model->npts; indx_mod++){
+    for (indx_mod=0; indx_mod<cvm_model->npts; indx_mod++)
+    {
         cvm_model->dens[indx_mod] = density_Brocher(cvm_model->vp[indx_mod]);
     }
-    if (parms.lthresh_dens){
+    if (parms.lthresh_dens)
+    {
        #pragma omp simd
-       for (indx_mod=0; indx_mod<cvm_model->npts; indx_mod++){
-            cvm_model->dens[indx_mod] = fmax(cvm_model->dens[indx_mod],
-                                             parms.dens_min);
-            cvm_model->dens[indx_mod] = fmin(cvm_model->dens[indx_mod],
-                                             parms.dens_max);
+       for (indx_mod=0; indx_mod<cvm_model->npts; indx_mod++)
+       {
+           cvm_model->dens[indx_mod] = fmax(cvm_model->dens[indx_mod],
+                                            parms.dens_min);
+           cvm_model->dens[indx_mod] = fmin(cvm_model->dens[indx_mod],
+                                            parms.dens_max);
        }
     }
     // Compute the quality factor
