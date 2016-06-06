@@ -5,6 +5,7 @@ MPICC = gcc-5
 F90 = gfortran-5
 INCC = -I./include
 
+CPREFLAGS = -DVISIT_WRITER
 CFLAGS = -O2 -Wall -fopenmp -std=gnu11 -g3
 
 # Find your libraries
@@ -20,13 +21,15 @@ IPP_LIB = /opt/intel/ipp/lib/intel64/libipps.a \
 LAPACK_LIB = /usr/lib/liblapacke.so /usr/lib/liblapack.so /usr/lib/libblas.so
 GSL_INC = -I/home/bakerb3/C/gsl-2.1/include
 GSL_LIB = /home/bakerb3/C/gsl-2.1/lib/libgsl.a
-GEO_LIB = /home/bakerb3/Fortran/GeographicLib-1.46/src/libGeographic.a
+GEO_LIB = /home/bakerb3/Fortran/GeographicLib-1.46/src/libGeographic.so
 FFTW_LIB = /home/bakerb3/C/fftw-3.3.4/lib/libfftw3.a
+VISIT_LIB = /home/bakerb3/C/VisIt/libvisit.a
+VISIT_INC = -I/home/bakerb3/C/VisIt 
 
 OBJ = ./Obj
 
-INCALL = $(INCC) $(H5_INC) $(INI_INC) $(ISCL_INC) $(GSL_INC)
+INCALL = $(INCC) $(H5_INC) $(INI_INC) $(ISCL_INC) $(GSL_INC) $(VISIT_INC)
 LIBALL = $(ISCL_LIB) $(FFTW_LIB) $(GEO_LIB) $(LAPACK_LIB) \
 	 $(GSL_LIB) $(INI_LIB) $(IPP_LIB) $(H5_LIB) $(Z_LIB) \
-	 -lm -ldl -lgfortran -lstdc++
+	 $(VISIT_LIB) -lm -ldl -lgfortran
 

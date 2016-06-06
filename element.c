@@ -162,7 +162,8 @@ int mesh_element__getIENBoundary(int nelem, bool lhomog,
         // Set the boundary element ien pointer
         ngnod_face = element[0].ngnod_face;
         #pragma omp simd
-        for (ielem_bdry=1; ielem_bdry<nelem_bdry+1; ielem_bdry++){
+        for (ielem_bdry=1; ielem_bdry<nelem_bdry+1; ielem_bdry++)
+        {
             ien_bdry_ptr[ielem_bdry] = ngnod_face*ielem_bdry;
         }
         // Extract the anchor nodes on the boundary
@@ -238,11 +239,15 @@ int mesh_element__getIENSize(int nelem, bool lhomog,
 {
     int ielem, len_ien;
     if (nelem < 1){return 0;}
-    if (lhomog){
+    if (lhomog)
+    {
         len_ien = nelem*element[0].ngnod;
-    }else{
+    }
+    else
+    {
         len_ien = 0;
-        for (ielem=0; ielem<nelem; ielem++){
+        for (ielem=0; ielem<nelem; ielem++)
+        {
             len_ien = len_ien + element[ielem].ngnod;
         }
     }
@@ -559,19 +564,23 @@ int mesh_element__setAnchorNodeLocations(int nelem, int nnpg,
 {
     const char *fcnm = "mesh_element__setAnchorNodeLocations\0";
     int ia, ielem, inpg, ngnod;
-    if (nelem < 1){
+    if (nelem < 1)
+    {
         printf("%s: There are no elements in the mesh\n", fcnm);
-        return 0;
+        return -1;
     }
-    if (nnpg < 1){
+    if (nnpg < 1)
+    {
         printf("%s: There are no anchor nodes in the mesh\n", fcnm);
-        return 0;
+        return -1;
     }
     #pragma omp parallel for private(ia, ielem, inpg, ngnod), \
      shared(element, xlocs, ylocs, zlocs)
-    for (ielem=0; ielem<nelem; ielem++){
+    for (ielem=0; ielem<nelem; ielem++)
+    {
         ngnod = element[ielem].ngnod;
-        for (ia=0; ia<ngnod; ia++){
+        for (ia=0; ia<ngnod; ia++)
+        {
             inpg = element[ielem].ien[ia];
             element[ielem].x[ia] = xlocs[inpg];
             element[ielem].y[ia] = ylocs[inpg];
@@ -610,19 +619,23 @@ int mesh_element__setAnchorNodeProperties(int nelem, int nnpg,
 {
     const char *fcnm = "mesh_element__setAnchorNodeProperties\0";
     int ia, ielem, inpg, ngnod;
-    if (nelem < 1){ 
+    if (nelem < 1)
+    {
         printf("%s: There are no elements in the mesh\n", fcnm);
-        return 0;
+        return -1;
     }   
-    if (nnpg < 1){ 
+    if (nnpg < 1)
+    {
         printf("%s: There are no anchor nodes in the mesh\n", fcnm);
-        return 0;
+        return -1;
     }   
     #pragma omp parallel for private(ia, ielem, inpg, ngnod), \
      shared(element, vp, vs, dens, Qp, Qs)
-    for (ielem=0; ielem<nelem; ielem++){
+    for (ielem=0; ielem<nelem; ielem++)
+    {
         ngnod = element[ielem].ngnod;
-        for (ia=0; ia<ngnod; ia++){
+        for (ia=0; ia<ngnod; ia++)
+        {
             inpg = element[ielem].ien[ia];
             element[ielem].vp[ia]   = vp[inpg];
             element[ielem].vs[ia]   = vs[inpg];
@@ -649,7 +662,8 @@ void mesh_element_memory__free(int nelem,
 {
     int ielem;
     if (element == NULL){return;}
-    for (ielem=0; ielem<nelem; ielem++){
+    for (ielem=0; ielem<nelem; ielem++)
+    {
         if (element[ielem].vp       != NULL){free(element[ielem].vp);}
         if (element[ielem].vs       != NULL){free(element[ielem].vs);}
         if (element[ielem].dens     != NULL){free(element[ielem].dens);}
@@ -679,7 +693,8 @@ void mesh_element_memory__free(int nelem,
  */
 void mesh_memory__free(struct mesh_struct *mesh)
 {
-    if (mesh->element != NULL){
+    if (mesh->element != NULL)
+    {
         mesh_element_memory__free(mesh->nelem, mesh->element);
         free(mesh->element);
         mesh->element = NULL;
@@ -724,25 +739,43 @@ bool mesh_element__ishomog(int nelem, struct mesh_element_struct *element)
  * @brief Returns the number of anchor nodes associated with the element type
  *
  * @param[in] type     element type
+ * @param[in] lis3d    if true then this is a 3D mesh.
+ *                     otherwise this is a 2D mesh
  *
  * @result number of anchor nodes on element
  *
  */
-int mesh_element_type2numAnchorNodes(enum mesh_element_type type)
+int mesh_element_type2numAnchorNodes(enum mesh_element_type type, bool lis3d)
 {
     const char *fcnm = "mesh_element__type2numAnchorNodes\0";
     int ngnod;
-    ngnod = 8; // hexes
-    if (type == TET4){
-        ngnod = 4;
-    }else if (type == HEX27){
-        ngnod = 27;
-    }else if (type == TET8){
-        ngnod = 11; 
-    }else{
-        if (type != HEX8){
-            printf("%s: Defaulting to HEX8\n", fcnm);
+    if (lis3d)
+    {
+        ngnod = 8; // hexes
+        if (type == TET4)
+        {
+            ngnod = 4;
         }
+        else if (type == HEX27)
+        {
+            ngnod = 27;
+        }
+        else if (type == TET8)
+        {
+            ngnod = 11; 
+        }
+        else
+        {
+            if (type != HEX8)
+            {
+                printf("%s: Defaulting to HEX8\n", fcnm);
+            }
+        }
+    }
+    else
+    {
+        printf("%s: Error 2d not yet done\n", fcnm);
+        return -1;
     }
     return ngnod;
 }
@@ -760,14 +793,22 @@ int mesh_element_type2numFaces(enum mesh_element_type type)
     const char *fcnm = "mesh_element_type2numFaces\0";
     int nface;
     nface = 6; // hexes have 6 faces
-    if (type == TET4){
+    if (type == TET4)
+    {
         nface = 4;
-    }else if (type == HEX27){
+    }
+    else if (type == HEX27)
+    {
         nface = 6;
-    }else if (type == TET8){
+    }
+    else if (type == TET8)
+    {
         nface = 4;
-    }else{
-        if (type != HEX8){
+    }
+    else
+    {
+        if (type != HEX8)
+        {
             printf("%s: Defaulting to HEX8\n", fcnm);
         }
     }
@@ -788,14 +829,22 @@ int mesh_element_type2numAnchorNodesPerFace(enum mesh_element_type type)
     const char *fcnm = "mesh_element_type2numAnchorNodesPerFace\0";
     int ngnod_face;
     ngnod_face = 4; // each face has 4 nodes
-    if (type == TET4){
+    if (type == TET4)
+    {
         ngnod_face = 3;
-    }else if (type == HEX27){
+    }
+    else if (type == HEX27)
+    {
         ngnod_face = 9;
-    }else if (type == TET8){
+    }
+    else if (type == TET8)
+    {
         ngnod_face = 6;
-    }else{
-        if (type != HEX8){
+    }
+    else
+    {
+        if (type != HEX8)
+        {
             printf("%s: Defaulting to HEX8\n", fcnm);
         }
     }
@@ -824,20 +873,23 @@ int mesh_element_memory__allocateIntegerPointers(
     struct mesh_element_struct *element)
 {
     const char *fcnm = "mesh_element_memory__allocateIntegerPointers\0";
-    int ielem, ngnod, ngnod_face, nface, npface;
-    ngnod = mesh_element_type2numAnchorNodes(type);
+    int ia, ielem, ngnod, ngnod_face, nface, npface;
+    ngnod = mesh_element_type2numAnchorNodes(type, true);
     nface = mesh_element_type2numFaces(type); 
     ngnod_face = mesh_element_type2numAnchorNodesPerFace(type);
-    if (type != HEX8){
+    if (type != HEX8)
+    {
         printf("%s: Error only considered hex8's\n", fcnm);
         return -1;
     }
     npface = ngnod_face*nface;
-    for (ielem=0; ielem<nelem; ielem++){
+    for (ielem=0; ielem<nelem; ielem++)
+    {
         element[ielem].ien_face = (int *)calloc(npface, sizeof(int));
         element[ielem].ien      = (int *)calloc(ngnod,  sizeof(int));
         element[ielem].bc       = (int *)calloc(nface,  sizeof(int));
         element[ielem].neighbor = (int *)calloc(nface,  sizeof(int));
+        for (ia=0; ia<nface; ia++){element[ielem].neighbor[ia] =-1;}
         element[ielem].nface = nface;
         element[ielem].ngnod = ngnod;
         element[ielem].ngnod_face = ngnod_face;
@@ -871,12 +923,14 @@ int mesh_element_memory__allocateMaterialPointers(
 {
     const char *fcnm = "mesh_element_memory__allocateMaterialPointers\0";
     int ielem, ngnod;
-    ngnod = mesh_element_type2numAnchorNodes(type);
-    if (type != HEX8){
+    ngnod = mesh_element_type2numAnchorNodes(type, true);
+    if (type != HEX8)
+    {
         printf("%s: Error only considered hex8's\n", fcnm);
         return -1;
     }
-    for (ielem=0; ielem<nelem; ielem++){
+    for (ielem=0; ielem<nelem; ielem++)
+    {
         element[ielem].vp   = (double *)calloc(ngnod, sizeof(double));
         element[ielem].vs   = (double *)calloc(ngnod, sizeof(double));
         element[ielem].dens = (double *)calloc(ngnod, sizeof(double));

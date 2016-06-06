@@ -10,9 +10,10 @@ EXECS = $(CVM_MESHER)
 
 OBJ_FILEIO = $(OBJ)/cvmio.o $(OBJ)/h5_cinter.o \
 	     $(OBJ)/meshio.o $(OBJ)/readini.o $(OBJ)/unpack.o
-OBJ_CVM_UTILS = $(OBJ)/density.o $(OBJ)/element.o $(OBJ)/memory.o \
-	        $(OBJ)/qualityFactor.o $(OBJ)/regmesh.o $(OBJ)/topo30.o \
-	        $(OBJ)/utm_geo.o
+OBJ_CVM_UTILS = $(OBJ)/density.o $(OBJ)/element.o \
+	        $(OBJ)/layeredMesh.o $(OBJ)/memory.o \
+	        $(OBJ)/qualityFactor.o $(OBJ)/regmesh.o $(OBJ)/template.o \
+	        $(OBJ)/topo30.o $(OBJ)/utm_geo.o
 
 OBJ_MESHER = $(OBJ)/cvm_mesher.o $(OBJ_FILEIO) $(OBJ_CVM_UTILS)
 
@@ -36,6 +37,9 @@ $(OBJ)/element.o: element.c
 $(OBJ)/h5_cinter.o: h5_cinter.c
 	$(CC) $(CFLAGS) $(INCALL) -c h5_cinter.c -o $(OBJ)/h5_cinter.o
 
+$(OBJ)/layeredMesh.o: layeredMesh.c
+	$(CC) $(CFLAGS) $(INCALL) -c layeredMesh.c -o $(OBJ)/layeredMesh.o
+
 $(OBJ)/memory.o: memory.c
 	$(CC) $(CFLAGS) $(INCALL) -c memory.c -o $(OBJ)/memory.o
 
@@ -50,6 +54,9 @@ $(OBJ)/readini.o: readini.c
 
 $(OBJ)/regmesh.o: regmesh.c
 	$(CC) $(CFLAGS) $(INCALL) -c regmesh.c -o $(OBJ)/regmesh.o
+
+$(OBJ)/template.o: template.c
+	$(CC) $(CFLAGS) $(INCALL) -c template.c -o $(OBJ)/template.o
 
 $(OBJ)/topo30.o: topo30.c
 	$(CC) $(CFLAGS) $(INCALL) -c topo30.c -o $(OBJ)/topo30.o

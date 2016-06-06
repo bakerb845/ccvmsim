@@ -340,7 +340,7 @@ int topo30_deformMesh(const char *topofl, int utm_zone,
         }
     }
     // Create a set of unique x, y points
-    iperm = sorting_argsort__double(npts, xlocs, &ierr);
+    iperm = sorting_argsort__double(npts, xlocs, ASCENDING, &ierr);
     if (ierr != 0)
     {
         log_errorF("%s: Error sorting xlocs\n", fcnm);

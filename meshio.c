@@ -38,7 +38,8 @@ int meshio_mesh2connectivity__getSize(bool lhomog, int nelem,
     ncon = 0;
     #pragma omp parallel for private(ielem, ngnod), \
      firstprivate(iadd), reduction(+:ncon)
-    for (ielem=0; ielem<nelem; ielem++){
+    for (ielem=0; ielem<nelem; ielem++)
+    {
         ngnod = element[ielem].ngnod;
         ncon = ncon + ngnod + iadd;
     }
@@ -70,7 +71,8 @@ int meshio_mesh2connectivity(bool cnum, bool lhomog, int nelem,
 {
     const char *fcnm = "meshio_mesh2connectivity\0";
     int *ien, *ien_ptr, ia, ielem, ierr, indx, ishift, len_ien, ngnod;
-    if (nelem < 1){
+    if (nelem < 1)
+    {
         printf("%s: No elements in mesh\n", fcnm);
         return -1;
     }
@@ -80,30 +82,40 @@ int meshio_mesh2connectivity(bool cnum, bool lhomog, int nelem,
     len_ien = mesh_element__getIENSize(nelem, lhomog, element);
     ien_ptr = (int *)calloc(nelem + 1, sizeof(int));
     // Homogeneous meshes are pretty easy to write
-    if (lhomog){
+    if (lhomog)
+    {
         ngnod = element[0].ngnod;
         ierr = mesh_element__getIEN(nelem, len_ien, lhomog,
                                     element, ien_ptr, connectivity);
     // Mixed element meshes require more care
-    }else{
+    }
+    else
+    {
         ien = (int *)calloc(len_ien, sizeof(int));
         ierr = mesh_element__getIEN(nelem, len_ien, lhomog,
                                     element, ien_ptr, ien);
         indx = 0;
-        for (ielem=0; ielem<nelem; ielem++){
+        for (ielem=0; ielem<nelem; ielem++)
+        {
             ngnod = ien_ptr[ielem+1] - ien_ptr[ielem];
-            if (element[ielem].type == HEX8){
+            if (element[ielem].type == HEX8)
+            {
                 connectivity[indx] = 9;
-            }else if(element[ielem].type == TET4){
+            }
+            else if(element[ielem].type == TET4)
+            {
                 connectivity[indx] = 6;
-            }else{
+            }
+            else
+            {
                 printf("%s: This isn't really done yet\n", fcnm);
                 connectivity[indx] = 3;
                 indx = indx + 1;
                 connectivity[indx] = ngnod;
             }
             indx = ien_ptr[ielem];
-            for (ia=0; ia<ngnod; ia++){
+            for (ia=0; ia<ngnod; ia++)
+            {
                 connectivity[indx] = ien[indx] - ishift;
                 indx = indx + 1;
             }

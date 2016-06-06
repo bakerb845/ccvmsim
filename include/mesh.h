@@ -86,7 +86,7 @@ int mesh_element__setAnchorNodeProperties(int nelem, int nnpg,
                                          struct mesh_element_struct *element);
 int mesh_element_type2numAnchorNodesPerFace(enum mesh_element_type type);
 int mesh_element_type2numFaces(enum mesh_element_type type);
-int mesh_element_type2numAnchorNodes(enum mesh_element_type type);
+int mesh_element_type2numAnchorNodes(enum mesh_element_type type, bool lis3d);
 
 bool mesh_element__ishomog(int nelem, struct mesh_element_struct *element);
 int mesh_element_memory__allocateMaterialPointers(
