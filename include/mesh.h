@@ -8,10 +8,9 @@ extern "C"
 #endif
 
 /* Vertical coarsening mesh prototypes */
-int layeredMesh_driver(struct cvm_parms_struct parms,
-                       struct cvm_model_struct *cvm_model,
-                       struct mesh_struct *mesh);
-
+struct mesh_struct layeredMesh_driver(struct cvm_parms_struct parms,
+                                      struct cvm_model_struct *cvm_model,
+                                      int *ierr);
 /* Regular mesh prototypes */
 int regmesh_getNumberOfElements(int nx, int ny, int nz, int *nelem);
 int regmesh_makeHexMeshPointers(int nx, int ny, int nz, 
@@ -56,6 +55,10 @@ int regmesh_copyRegularModel(bool lflip, int nx, int ny, int nz,
                              double *__restrict__ Qp,
                              double *__restrict__ Qs,
                              struct mesh_element_struct *element);
+int *mesh_element__getNode2ElementMap(int nelem, int nnpg,
+                                      struct mesh_element_struct *element,
+                                      int *node2element_ptr,
+                                      int *ierr);
 int regmesh_makeHexIEN(int nx, int ny, int nz, int *ien);
 
 int mesh_element__getAnchorNodeLocations(int nelem, int nnpg,
@@ -115,6 +118,11 @@ int meshio_write__NLLGrid(char *dirnm, char *projnm,
                           double dx, double dy, double dz, 
                           int utm_zone, double dep0,
                           struct mesh_struct mesh);
+int meshio_mesh2connectivity__getSize(bool lhomog, int nelem,
+                                      struct mesh_element_struct *element);
+int meshio_mesh2connectivity(bool cnum, bool lhomog, int nelem,
+                             struct mesh_element_struct *element,
+                             int ncon, int *connectivity);
 int meshio_write__h5(char *meshdir, char *projnm,
                      struct mesh_struct mesh);
 int meshio_write__xdmf(char *meshdir, char *projnm,

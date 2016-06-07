@@ -41,4 +41,9 @@
       -  If you want to add topography to your mesh download the following
          netCDF4 topography file:
          https://drive.google.com/folderview?id=0B_12SLGjHpOzSzl6OWh0TUJ0bGc&usp=sharing 
+      -  A quick + easy utility for writing vtk files that I used while
+         debugging the tripling layer utility is:
+         https://github.com/certik/visit_writer
+         You additionally will have to enable by setting the 
+         -DVISIT_WRITER pre-processing flag. 
 

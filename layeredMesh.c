@@ -3,15 +3,20 @@
 #include <float.h>
 #include <math.h>
 #include <string.h>
+#include <gsl/gsl_interp.h>
 #include "cvm.h"
+#include "mesh.h"
 #include "iscl/array/array.h"
 #include "iscl/memory/memory.h"
 #include "iscl/sorting/sorting.h"
+#ifdef VISIT_WRITER
 #include "visit_writer.h"
+#endif
 
 static double __tform(double a, double b,
                       double c, double d,
                       double x, int *ierr);
+int meshio_writeMesh__vtk(const char *flname, struct mesh_struct mesh);
 
 struct mesh_struct layeredMesh_healMesh(int nmeshes,
                                         struct mesh_struct *meshes,
@@ -19,9 +24,11 @@ struct mesh_struct layeredMesh_healMesh(int nmeshes,
 {
     const char *fcnm = "layeredMesh_healMesh\0";
     struct mesh_struct mesh;
-    double *x, *y, *z, xl, yl, zl;
-    int *iperm, itemp[9], jtemp[9], i, ia, i1, i2, ielem, iface, imesh, inpg,
-        indx, jelem, jface, nelem, nlocy, nlocz, nnpg, npsort, nwork;
+    double *x, *y, *z, *zs, xl, yl, zl;
+    int *iperm, *neighbors, *node2element, *node2element_ptr, *zptr,
+        itemp[9], jtemp[9], i, ia, i1, i2, ielem, iface, imesh, inpg,
+        indx, j, jelem, jface, nelem, nlocy, nlocz, nneigh,
+        nnpg, npsort, nwork;
     bool lfound, lmatch, lxdif, lydif, lzdif;
     const int faceMask[24] = {0, 1, 5, 4,
                               1, 2, 6, 5,
@@ -39,6 +46,11 @@ struct mesh_struct layeredMesh_healMesh(int nmeshes,
     mesh.ylocs = NULL;
     mesh.zlocs = NULL;
     iperm = NULL;
+    neighbors = NULL;
+    node2element = NULL;
+    node2element_ptr = NULL;
+    zs = NULL;
+    zptr = NULL;
     memset(&mesh, 0, sizeof(struct mesh_struct));
     if (nmeshes < 1)
     {
@@ -64,6 +76,7 @@ struct mesh_struct layeredMesh_healMesh(int nmeshes,
         *ierr = 1;
         goto ERROR;
     }
+    printf("%s: Found %d elements\n", fcnm, nelem);
     mesh.nelem = nelem;
     mesh.element = (struct mesh_element_struct *)
                    calloc(mesh.nelem, sizeof(struct mesh_element_struct));
@@ -141,11 +154,13 @@ struct mesh_struct layeredMesh_healMesh(int nmeshes,
             i1 = i + 1;
         }
     }
-    // Sort the anchor nodes with increasing x
+    // Sort the anchor nodes with increasing x.  Note everytime z changes
+    // then so must y
     i1 = 0;
     for (i=0; i<nwork; i++)
     {
-        if (fabs(z[i+1] - z[i]) > tol || fabs(y[i+1] - y[i]) > tol)
+        //if (fabs(z[i+1] - z[i]) > tol || fabs(y[i+1] - y[i]) > tol)
+        if (fabs(y[i+1] - y[i]) > tol)
         {
             i2 = i;
             npsort = i2 - i1 + 1;
@@ -194,7 +209,10 @@ struct mesh_struct layeredMesh_healMesh(int nmeshes,
     mesh.xlocs = (double *)calloc(nnpg, sizeof(double));
     mesh.ylocs = (double *)calloc(nnpg, sizeof(double));
     mesh.zlocs = (double *)calloc(nnpg, sizeof(double));
+    zs = (double *)calloc(nlocz, sizeof(double));
+    zptr = (int *)calloc(nlocz+1, sizeof(int));
     inpg = 0;
+    nlocz = 0;
     for (i=0; i<nwork; i++)
     {
         lxdif = false;
@@ -208,6 +226,12 @@ struct mesh_struct layeredMesh_healMesh(int nmeshes,
             mesh.xlocs[inpg] = x[i];
             mesh.ylocs[inpg] = y[i];
             mesh.zlocs[inpg] = z[i];
+            if (lzdif)
+            {
+                zs[nlocz] = z[i];
+                zptr[nlocz+1] = inpg;
+                nlocz = nlocz + 1;
+            }
             inpg = inpg + 1;
         }
     }
@@ -226,7 +250,7 @@ struct mesh_struct layeredMesh_healMesh(int nmeshes,
     }
     // Now hunt for unique nodes
     printf("%s: Hunting for nodes...\n", fcnm);
-printf("%s TODO use at least a zptr\n", fcnm);
+printf("%s TODO: add a y ptr too\n", fcnm); //TODO
     nelem = 0;
     for (imesh=0; imesh<nmeshes; imesh++)
     {
@@ -237,16 +261,33 @@ printf("%s TODO use at least a zptr\n", fcnm);
                 xl = meshes[imesh].element[ielem].x[ia];
                 yl = meshes[imesh].element[ielem].y[ia];
                 zl = meshes[imesh].element[ielem].z[ia];
+                // Try to bracket result
+                i1 = gsl_interp_bsearch(zs, zl, 0, nlocz);
                 lfound = false;
-                for (inpg=0; inpg<mesh.nnpg; inpg++)
+                for (inpg=zptr[i1]; inpg<zptr[i1+1]; inpg++)
                 {
                     if (fabs(mesh.xlocs[inpg] - xl) < tol &&
                         fabs(mesh.ylocs[inpg] - yl) < tol &&
                         fabs(mesh.zlocs[inpg] - zl) < tol)
                     {
                         lfound = true;
-                        mesh.element[nelem].ien[ia] = inpg; 
+                        mesh.element[nelem].ien[ia] = inpg;
                         break;
+                    }
+                }
+                // Resort to linear search
+                if (!lfound)
+                {
+                    for (inpg=0; inpg<mesh.nnpg; inpg++)
+                    {
+                        if (fabs(mesh.xlocs[inpg] - xl) < tol &&
+                            fabs(mesh.ylocs[inpg] - yl) < tol &&
+                            fabs(mesh.zlocs[inpg] - zl) < tol)
+                        {
+                            lfound = true;
+                            mesh.element[nelem].ien[ia] = inpg; 
+                            break;
+                        }
                     }
                 }
                 if (!lfound)
@@ -258,7 +299,28 @@ printf("%s TODO use at least a zptr\n", fcnm);
             nelem = nelem + 1;
         } // Loop on elements in mesh
     } // Loop on on meshes
-    // This is going to hurt but find the neighbors
+    // Compute the connections between nodes and elements to expedite next step
+    printf("%s: Computing node to element connectivity...\n", fcnm);
+    node2element_ptr = (int *)calloc(mesh.nnpg+1, sizeof(int));
+    node2element = mesh_element__getNode2ElementMap(mesh.nelem,
+                                                    mesh.nnpg,
+                                                    mesh.element,
+                                                    node2element_ptr,
+                                                    ierr);
+    if (*ierr != 0)
+    {
+        printf("%s: Error generating node to connectivity map\n", fcnm);
+        goto ERROR;
+    }
+    // Get the workspace - max number of connections 
+    nwork = 0;
+    for (inpg=0; inpg<mesh.nnpg; inpg++)
+    {
+        nwork = fmax(nwork, node2element_ptr[inpg+1] - node2element_ptr[inpg]);
+    }
+    nwork = 9*nwork + 1; // worst case is a 9 noded face 
+    neighbors = (int *)calloc(nwork, sizeof(int)); 
+    // Look for the neighbors
     printf("%s: Searching for neighbors...\n", fcnm);
     for (ielem=0; ielem<mesh.nelem; ielem++)
     {
@@ -278,10 +340,80 @@ printf("%s TODO use at least a zptr\n", fcnm);
             {
                 indx = iface*4 + ia;
                 itemp[ia] = mesh.element[ielem].ien[faceMask[indx]];
+                mesh.element[ielem].ien_face[indx] = itemp[ia];
             }
             *ierr = __sorting_sort__int(mesh.element[ielem].ngnod_face,
                                         itemp, ASCENDING);
             if (*ierr != 0){goto ERROR;}
+            // Null out the neighbors
+            for (j=0; j<nwork; j++)
+            {
+                neighbors[j] =-1;
+            } 
+            // Get the neighbors to these nodes
+            j = 0;
+            for (ia=0; ia<mesh.element[ielem].ngnod_face; ia++)
+            {
+                inpg = itemp[ia];
+                i1 = node2element_ptr[inpg];
+                i2 = node2element_ptr[inpg+1];
+                for (i=i1; i<i2; i++)
+                {
+                    neighbors[j] = node2element[i];
+                    j = j + 1;
+                }
+            }
+            // Sort
+            nneigh = j;
+            *ierr = __sorting_sort__int(nneigh, neighbors, ASCENDING);
+            if (*ierr != 0){goto ERROR;}
+            // Loop on candidate neighbors
+            for (j=0; j<nneigh; j++)
+            {
+                if (neighbors[j] ==-1){continue;}
+                if (neighbors[j+1] == neighbors[j]){continue;} // repeat
+                jelem = neighbors[j];
+                if (ielem == jelem){continue;} // Not attached to myself
+                // This would indicate an unconforming mesh
+                if (mesh.element[ielem].type != mesh.element[jelem].type)
+                {
+                    printf("%s: Mesh must be all hexes are tets\n", fcnm);
+                    *ierr = 1;
+                    goto ERROR;
+                }
+                for (jface=0; jface<mesh.element[jelem].nface; jface++)
+                {
+                    for (ia=0; ia<mesh.element[jelem].ngnod_face; ia++)
+                    {
+                        indx = jface*4 + ia;
+                        jtemp[ia] = mesh.element[jelem].ien[faceMask[indx]];
+                    }
+                    *ierr = __sorting_sort__int(mesh.element[jelem].ngnod_face,
+                                                jtemp, ASCENDING);
+                    if (*ierr != 0)
+                    {
+                        printf("%s: Error sorting jtemp\n", fcnm);
+                        goto ERROR;
+                    }
+                    lmatch = true;
+                    for (ia=0; ia<mesh.element[jelem].ngnod_face; ia++)
+                    {
+                        if (itemp[ia] != jtemp[ia])
+                        {
+                            lmatch = false;
+                            break;
+                        }
+                    } // Loop on itemp == jtemp
+                    if (lmatch)
+                    {
+                        mesh.element[ielem].neighbor[iface] = jelem;
+                        goto NEXT_FACE;
+                        //mesh.element[jelem].neighbor[jface] = ielem;
+                    }
+                } // Loop on faces on candidate neighbor
+            } // Loop on neighbors
+/*
+continue;
             // Loop on other elements in mesh
             for (jelem=0; jelem<mesh.nelem; jelem++)
             {
@@ -309,23 +441,31 @@ printf("%s TODO use at least a zptr\n", fcnm);
                         if (itemp[ia] != jtemp[ia])
                         {
                             lmatch = false;
-                            break; 
+                            break;
                         }
                     } // Loop on itemp == jtemp
                     if (lmatch)
                     {
                         mesh.element[ielem].neighbor[iface] = jelem;
+                        goto NEXT_FACE;
                         //mesh.element[jelem].neighbor[jface] = ielem;
                     }
                 } // Loop on faces on candidate neighbor
             } // Loop on other elements in mesh
+*/
+NEXT_FACE:;
         } // Loop on faces on home element 
     } // Loop on faces on home element
 ERROR:;
+    if (neighbors != NULL){free(neighbors);}
+    if (node2element != NULL){free(node2element);}
+    if (node2element_ptr != NULL){free(node2element_ptr);}
     if (iperm != NULL){free(iperm);}
     if (x != NULL){free(x);}
     if (y != NULL){free(y);}
     if (z != NULL){free(z);}
+    if (zs != NULL){free(zs);}
+    if (zptr != NULL){free(zptr);}
     return mesh;
 }
 //============================================================================//
@@ -340,11 +480,16 @@ ERROR:;
  * @param[in] zmin    min modeling depth (m)
  *
  */
-int layeredMesh_makeVerticalColumn(int nc,
-                                   double dx, double dy, double dz,
-                                   double zmax, double zmin,
-                                   enum coarsen_type *coarsen, 
-                                   double *zcoarsen )
+struct mesh_struct layeredMesh_makeVerticalColumn(int nc,
+                                                  double dx,
+                                                  double dy,
+                                                  double dz,
+                                                  double zmax, double zmin,
+                                                  enum coarsen_type *coarsen,
+                                                  double *zcoarsen,
+                                                  int *nelemx_surf,
+                                                  int *nelemy_surf,
+                                                  int *ierr)
 {
     const char *fcnm = "layeredMesh_makeVerticalColumn\0";
     struct mesh_struct *mesh, meshColumn;
@@ -352,7 +497,7 @@ int layeredMesh_makeVerticalColumn(int nc,
     double *zint, dxl, dyl, dzl, x, x1, y, y1, x2, y2,
            z, z0l, z1l, z1, z2;
     int *nzint, ia, ielemx, ielemy, ielemxy,
-        ierr, iface, il, ioff, ipad, it, jl,
+        iface, il, ioff, ipad, it, jl,
         lastElem, nelemx, nelemxy, nelemy, nelemz, nfact,
         nl, nx, ny, nz, nzl;
     const double x0 = 0.0;
@@ -373,6 +518,9 @@ int layeredMesh_makeVerticalColumn(int nc,
     mesh = (struct mesh_struct *)calloc(nl, sizeof(struct mesh_struct));
     zint = (double *)calloc(nl+1, sizeof(double));
     nzint = (int *)calloc(nl, sizeof(int)); 
+    *nelemx_surf = 1;
+    *nelemy_surf = 1;
+    memset(&meshColumn, 0, sizeof(struct mesh_struct));
     // Set the vertical tripling template
     mesh_template__hexTriple(tmplate);
     // Figure out the widths of each layer and number of z points
@@ -399,7 +547,7 @@ int layeredMesh_makeVerticalColumn(int nc,
             if (nzl >= nzmax)
             {
                 printf("%s: Failed to count nz in layer %d\n", fcnm, il);
-                return -1;
+                return meshColumn;
             }
         }
         else // Figure it out from the model base
@@ -411,7 +559,7 @@ int layeredMesh_makeVerticalColumn(int nc,
         if (nzl < 1)
         {
             printf("%s: Error no points in layer %d\n", fcnm, il+1);
-            return -1;
+            return meshColumn;
         }
         z1l = z0l + (double) (nzl - 1)*dzl;
         zint[il+1] = z1l;
@@ -440,6 +588,11 @@ int layeredMesh_makeVerticalColumn(int nc,
         if (il > 0){nfact = coarsen[il-1];} 
         nx = nelemx + 1;
         ny = nelemy + 1;
+        if (il == 0)
+        {
+            *nelemx_surf = nelemx;
+            *nelemy_surf = nelemy;
+        }
         nelemz = nz - 1;
         if (il < nl - 1){printf("\n");}
         printf("%s: Meshing layer: %d\n", fcnm, il+1);
@@ -450,11 +603,11 @@ int layeredMesh_makeVerticalColumn(int nc,
         printf("%s: Number of elements is %d %d %d\n",
                fcnm, nelemx, nelemy, nelemz);
         // Get number of elements
-        ierr = regmesh_getNumberOfElements(nx, ny, nz, &mesh[jl].nelem);
-        if (ierr != 0)
+        *ierr = regmesh_getNumberOfElements(nx, ny, nz, &mesh[jl].nelem);
+        if (*ierr != 0)
         {
             printf("%s: Error counting number of elements\n", fcnm);
-            return -1;
+            return meshColumn;
         }
         // Set space leaving space for template
         ipad = 0;
@@ -473,42 +626,42 @@ int layeredMesh_makeVerticalColumn(int nc,
         // Homogeneous hex mesh in this layer
         mesh[jl].lhomog = true;
         // Set the memory for the pointers on the elements
-        ierr = mesh_element_memory__allocateIntegerPointers(HEX8,
+        *ierr = mesh_element_memory__allocateIntegerPointers(HEX8,
                                                           mesh[jl].nelem + ipad,
                                                           mesh[jl].element);
-        if (ierr != 0)
+        if (*ierr != 0)
         {
             printf("%s: Failed to set memory for integer pointers\n", fcnm);
-            return -1;
+            return meshColumn;
         }
-        ierr = mesh_element_memory__allocateMaterialPointers(
+        *ierr = mesh_element_memory__allocateMaterialPointers(
                                         HEX8,
                                         mesh[jl].nelem + ipad,
                                         mesh[jl].element); 
-        if (ierr != 0)
+        if (*ierr != 0)
         {
             printf("%s: Error setting space for material pointers\n", fcnm);
-            return -1;
+            return meshColumn;
         }
         // Set the integer pointers
-        ierr = regmesh_makeHexMeshPointers(nx, ny, nz, mesh[jl].nelem,
-                                           mesh[jl].element);
-        if (ierr != 0)
+        *ierr = regmesh_makeHexMeshPointers(nx, ny, nz, mesh[jl].nelem,
+                                            mesh[jl].element);
+        if (*ierr != 0)
         {
             printf("%s: Error setting integer pointers!\n", fcnm);
-            return -1;
+            return meshColumn;
         }
         // Set the anchor node locations
-        ierr = regmesh_makeRegularNodes(nx, ny, nz,
-                                        dxl,
-                                        dyl,
-                                        dzl,
-                                        x0, y0, z0l,
-                                        mesh[jl].nelem, mesh[jl].element);
-        if (ierr != 0)
+        *ierr = regmesh_makeRegularNodes(nx, ny, nz,
+                                         dxl,
+                                         dyl,
+                                         dzl,
+                                         x0, y0, z0l,
+                                         mesh[jl].nelem, mesh[jl].element);
+        if (*ierr != 0)
         {
             printf("%s: Failed setting anchor node locations\n", fcnm);
-            return -1;
+            return meshColumn;
         }
         // Apply the template to the top element in this layer
         if (ipad > 0)
@@ -579,13 +732,13 @@ int layeredMesh_makeVerticalColumn(int nc,
                     {
                         x = __tform(-1.0, 1.0,
                                     x1, x2,
-                                    tmplate[it].x[ia], &ierr);
+                                    tmplate[it].x[ia], ierr);
                         y = __tform(-1.0, 1.0,
                                     y1, y2,
-                                    tmplate[it].y[ia], &ierr);
+                                    tmplate[it].y[ia], ierr);
                         z = __tform(-1.0, 1.0,
                                     z1, z2,
-                                    tmplate[it].z[ia], &ierr);
+                                    tmplate[it].z[ia], ierr);
                         mesh[jl].element[ioff+it].x[ia] = x;
                         mesh[jl].element[ioff+it].y[ia] = y;
                         mesh[jl].element[ioff+it].z[ia] = z;
@@ -617,47 +770,16 @@ int layeredMesh_makeVerticalColumn(int nc,
     printf("%s: Healing the columnar mesh...\n", fcnm);
     meshColumn = layeredMesh_healMesh(nl,
                                       mesh,
-                                      &ierr);
+                                      ierr);
     // Generate connectivity
-    float *pts = (float *)calloc(3*meshColumn.nnpg, sizeof(float));
-    int *zonetypes = (int *)calloc(meshColumn.nelem, sizeof(int));
-    float *elems = (float *)calloc(meshColumn.nelem, sizeof(float));
-    float *nodes = (float *)calloc(meshColumn.nnpg, sizeof(float));
-    int *connectivity = NULL;
-    int ielem, inpg, ncon, nnpg;
-    for (ielem=0; ielem<meshColumn.nelem; ielem++)
+#ifdef VISIT_WRITER
+    *ierr = meshio_writeMesh__vtk("column.vtk\0", meshColumn);
+    if (*ierr != 0)
     {
-        zonetypes[ielem] = VISIT_HEXAHEDRON;
-        elems[ielem] = (float) ielem + 1; 
+        printf("%s: Error writing vtk column mesh\n", fcnm);
+        *ierr = 0;
     }
-    for (inpg=0; inpg<meshColumn.nnpg; inpg++)
-    {
-        nodes[inpg] = (float) inpg + 1;
-        pts[3*inpg+0] = meshColumn.xlocs[inpg];
-        pts[3*inpg+1] = meshColumn.ylocs[inpg];
-        pts[3*inpg+2] = meshColumn.zlocs[inpg];
-    }
-    ncon = meshio_mesh2connectivity__getSize(meshColumn.lhomog,
-                                             meshColumn.nelem,
-                                             meshColumn.element);
-    connectivity = (int *)calloc(ncon, sizeof(int));
-    ierr = meshio_mesh2connectivity(true, meshColumn.lhomog, meshColumn.nelem,
-                                    meshColumn.element,
-                                    ncon, connectivity);
-    int nvars = 2;
-    int vardims[2] = {1, 1};
-    int centering[2] = {0, 1};
-    const char *varnames[2] = {"ElementNumbers\0", "NodeNumbers\0"};
-    float *vars[] = {elems, nodes};
-    write_unstructured_mesh("column.vtk\0", 1, meshColumn.nnpg,
-                            pts, meshColumn.nelem,
-                            zonetypes, connectivity, nvars, vardims, centering,
-                            varnames, vars);
-    free(pts);
-    free(zonetypes);
-    free(elems);
-    free(nodes);
-    free(connectivity);
+#endif
     // Free space
     printf("%s: Freeing memory...\n", fcnm);
     mesh_element_memory__free(nelem_template, tmplate);
@@ -669,22 +791,28 @@ int layeredMesh_makeVerticalColumn(int nc,
     free(mesh);
     free(zint);
     free(nzint);
-    return 0;
+    return meshColumn;
 }
 //============================================================================//
 /*!
  * @brief Generates the layered mesh with corasening in the vertical
  *        direction
  */
-int layeredMesh_driver(struct cvm_parms_struct parms,
-                       struct cvm_model_struct *cvm_model,
-                       struct mesh_struct *mesh)
+struct mesh_struct layeredMesh_driver(struct cvm_parms_struct parms,
+                                      struct cvm_model_struct *cvm_model,
+                                      int *ierr)
 {
     const char *fcnm = "layeredMesh_driver\0";
-    double rlat, rlon, x1, y1;
-    int ic, ierr, ix, iy, ncom_denom, nx, nx0, ny, ny0, nz;
-    memset(mesh, 0, sizeof(struct mesh_struct));
+    struct mesh_struct *meshes, meshColumn, mesh;
+    double dx_surf, dy_surf, rlat, rlon, xavg, x1, xbeg, xmax, xmin,
+           yavg, y1, ybeg, ymax, ymin, zavg, zmax, zmin;
+    int ia, ic, ielem, ielemx, ielemxy, ielemy, iface, indx, inpg, ix, ixy, iy,
+        ncom_denom, nelemx, nelemx_surf, nelemy_surf,
+        nelemxy, ngnod, nx, nx0, ny, ny0, nz;
+    const double tol = 1.e-2; // cm accuracy
+    memset(&mesh, 0, sizeof(struct mesh_struct));
     // First fix the number of x and y grid points in the top layer
+    *ierr = 0;
     ncom_denom = 1;
     for (ic=0; ic<parms.ncoarsen; ic++)
     {
@@ -693,20 +821,23 @@ int layeredMesh_driver(struct cvm_parms_struct parms,
     if (ncom_denom < 1)
     {
         printf("%s: Invalid common denominator %d\n", fcnm, ncom_denom);
-        return -1;
+        *ierr = 1;
+        return mesh;
     }
     // Estimate nx and ny grid points in shallowest regular mesh 
-    ierr = cvm_estimateNumberOfGridPoints(parms.nlay_cvm, cvm_model,
-                                          parms.dx_fem,
-                                          parms.dy_fem,
-                                          parms.dz_fem,
-                                          &nx, &ny, &nz);
-    if (ierr != 0)
+    printf("%s: Creating columnar template...\n", fcnm);
+    *ierr = cvm_estimateNumberOfGridPoints(parms.nlay_cvm, cvm_model,
+                                           parms.dx_fem,
+                                           parms.dy_fem,
+                                           parms.dz_fem,
+                                           &nx, &ny, &nz);
+    if (*ierr != 0)
     {
         printf("%s: Error estimating nx/ny grid points in top layer\n", fcnm);
-        return -1;
+        return mesh;
     }
-    // Now walk the nx and ny grid points so they are divisible by ncom_denom
+    // Now walk the nx and ny grid points so nelemx and nelemy at the
+    // surface are divisible by ncom_denom
     nx0 = nx;
     for (ix=0; ix<nx; ix++)
     {
@@ -721,7 +852,7 @@ int layeredMesh_driver(struct cvm_parms_struct parms,
     {
         if (fmod(ny-iy, ncom_denom) == 0)
         {   
-            ny = ny - iy; 
+            ny = ny - iy;
             break;
         }   
     } 
@@ -733,20 +864,181 @@ int layeredMesh_driver(struct cvm_parms_struct parms,
         if (rlon < 0.0){rlon = rlon + 360.0;}
         printf("%s: Moving (x1,y1) to (%f, %f)\n", fcnm, rlat, rlon);
     }
-    // Make the vertical column mesh
-     layeredMesh_makeVerticalColumn(parms.ncoarsen, 
-                                    parms.dx_fem, parms.dy_fem, parms.dz_fem, 
-                                    parms.zmax, parms.zmin,
-                                    parms.coarsen, 
-                                    parms.zcoarsen );
-printf("%f %f\n", parms.zmax, parms.zmin);
-printf("%d %d\n", nx, ny);
-    //nx = parmsutm_x0
-    //parms->utm_x0 + parms->dx_fem;
-    
-    // Walk the y grid points back so the ensuing interpolation works
-
-    return 0;
+    // Make the vertical column mesh - this has the refinementin each
+    // column
+    meshColumn = layeredMesh_makeVerticalColumn(parms.ncoarsen,
+                                                parms.dx_fem,
+                                                parms.dy_fem,
+                                                parms.dz_fem,
+                                                parms.zmax, parms.zmin,
+                                                parms.coarsen, 
+                                                parms.zcoarsen,
+                                                &nelemx_surf,
+                                                &nelemy_surf,
+                                                ierr);
+    if (*ierr != 0)
+    {
+        printf("%s: Error creating the column mesh!\n", fcnm);
+        return mesh;
+    }
+    if (nelemx_surf != ncom_denom || nelemy_surf != ncom_denom)
+    {
+        printf("%s: Very likely an inconsistency in nelemx/nelemy\n", fcnm);
+    }
+    dx_surf = (double) ncom_denom*parms.dx_fem;
+    dy_surf = (double) ncom_denom*parms.dy_fem;
+    nelemx_surf = nx/ncom_denom;
+    nelemy_surf = ny/ncom_denom;
+    // Now repeat the column mesh over and over again until all the x's and
+    // y's are filled
+    nelemxy = nelemx_surf*nelemy_surf;
+    printf("%s: Repeating the columnar mesh %d times\n", fcnm, nelemxy);
+    meshes = (struct mesh_struct *)calloc(nelemxy, sizeof(struct mesh_struct));
+    nelemx = nelemx_surf;
+    ielemx = 0;
+    ielemy = 1;
+    for (ixy=0; ixy<nelemxy; ixy++)
+    {
+        ielemx = ielemx + 1;
+        if (ielemx == nelemx_surf + 1)
+        {
+            ielemx = 1;
+            ielemy = ielemy + 1;
+        }
+        xbeg = parms.utm_x0 + (double) (ielemx - 1)*dx_surf;
+        ybeg = parms.utm_y0 + (double) (ielemy - 1)*dy_surf;
+        // Set the anchor node locations
+        meshes[ixy].nnpg = meshColumn.nnpg;
+        meshes[ixy].nelem = meshColumn.nelem;
+        meshes[ixy].lptr_only = meshColumn.lptr_only;
+        meshes[ixy].lhomog = meshColumn.lhomog;
+        meshes[ixy].element = (struct mesh_element_struct *)
+                                  calloc(meshColumn.nelem,
+                                         sizeof(struct mesh_element_struct));
+        *ierr = mesh_element_memory__allocateIntegerPointers(HEX8,
+                                                       meshes[ixy].nelem,
+                                                       meshes[ixy].element);
+        if (*ierr != 0)
+        {
+            printf("%s: Error allocating memory for column %d\n",
+                   fcnm, ixy);
+            return mesh;
+        }
+        for (ielem=0; ielem<meshes[ixy].nelem; ielem++)
+        {
+            ngnod = meshColumn.element[ielem].ngnod;
+            meshes[ixy].element[ielem].nface = meshColumn.element[ielem].nface;
+            meshes[ixy].element[ielem].ngnod = ngnod;
+            meshes[ixy].element[ielem].ngnod_face 
+                 = meshColumn.element[ielem].ngnod_face;
+            meshes[ixy].element[ielem].type = meshColumn.element[ielem].type;
+            meshes[ixy].element[ielem].x = (double *)calloc(ngnod,
+                                                            sizeof(double));
+            meshes[ixy].element[ielem].y = (double *)calloc(ngnod,
+                                                            sizeof(double));
+            meshes[ixy].element[ielem].z = (double *)calloc(ngnod,
+                                                            sizeof(double));
+            // Copy the locations and shift
+            for (ia=0; ia<ngnod; ia++)
+            {
+                inpg = meshColumn.element[ielem].ien[ia];
+                meshes[ixy].element[ielem].x[ia] = xbeg
+                                                 + meshColumn.xlocs[inpg];
+                meshes[ixy].element[ielem].y[ia] = ybeg
+                                                 + meshColumn.ylocs[inpg];
+                meshes[ixy].element[ielem].z[ia] = meshColumn.zlocs[inpg];
+            }
+        }
+    }
+    printf("%s: Healing entire mesh...\n", fcnm);
+    mesh = layeredMesh_healMesh(nelemxy,
+                                meshes,
+                                ierr);
+#ifdef VISIT_WRITER
+    *ierr = meshio_writeMesh__vtk("tripled_mesh.vtk\0", mesh);
+    if (*ierr != 0)
+    {   
+        printf("%s: Error writing vtk column mesh\n", fcnm);
+        *ierr = 0;
+    }   
+#endif
+    // Enforce the boundary conditions (albeit somewhat crudely)
+    printf("%s: Crudely setting boundary conditions...\n", fcnm);
+    xmax = array_max__double(mesh.nnpg, mesh.xlocs);
+    xmin = array_min__double(mesh.nnpg, mesh.xlocs);
+    ymax = array_max__double(mesh.nnpg, mesh.ylocs);
+    ymin = array_min__double(mesh.nnpg, mesh.ylocs);
+    zmax = array_max__double(mesh.nnpg, mesh.zlocs);
+    zmin = array_min__double(mesh.nnpg, mesh.zlocs);
+    for (ielem=0; ielem<mesh.nelem; ielem++)
+    {
+        for (iface=0; iface<mesh.element[ielem].nface; iface++)
+        {
+            xavg = 0.0;
+            yavg = 0.0;
+            zavg = 0.0;
+            for (ia=0; ia<mesh.element[ielem].ngnod_face; ia++)
+            {
+                indx = iface*4 + ia;
+                inpg = mesh.element[ielem].ien_face[indx];
+                xavg = xavg + mesh.xlocs[inpg];
+                yavg = yavg + mesh.ylocs[inpg];
+                zavg = zavg + mesh.zlocs[inpg];
+            }
+            xavg = xavg/(double) mesh.element[ielem].ngnod_face;
+            yavg = yavg/(double) mesh.element[ielem].ngnod_face;
+            zavg = zavg/(double) mesh.element[ielem].ngnod_face;
+            mesh.element[ielem].bc[iface] = NO_BC;
+            if (fabs(xavg - xmin) < tol)
+            {
+                mesh.element[ielem].bc[iface] = WEST_BDRY;
+            }
+            if (fabs(xavg - xmax) < tol)
+            {
+                mesh.element[ielem].bc[iface] = EAST_BDRY; 
+            }
+            if (fabs(yavg - ymin) < tol)
+            {
+                mesh.element[ielem].bc[iface] = SOUTH_BDRY;
+            }
+            if (fabs(yavg - ymax) < tol)
+            {
+                mesh.element[ielem].bc[iface] = NORTH_BDRY;
+            }
+            if (fabs(zavg - zmin) < tol)
+            {
+                mesh.element[ielem].bc[iface] = BOTTOM_BDRY;
+            }
+            if (fabs(zavg - zmax) < tol)
+            {
+                mesh.element[ielem].bc[iface] = TOP_BDRY;
+            }
+            // warn about mistakes
+            if (mesh.element[ielem].neighbor[iface] >-1 &&
+                mesh.element[ielem].bc[iface] != NO_BC)
+            {
+                printf("%s: may have missed type1\n", fcnm);
+            }
+            if (mesh.element[ielem].neighbor[iface] ==-1 &&
+                mesh.element[ielem].bc[iface] == NO_BC)
+            {
+                printf("%s: may have missed type2 %f %f %f\n", fcnm, xavg, yavg, zavg);
+            }
+        }
+    }
+    // Finish setting space
+    mesh.vp = (double *)calloc(mesh.nnpg, sizeof(double));
+    mesh.vs = (double *)calloc(mesh.nnpg, sizeof(double));
+    mesh.dens = (double *)calloc(mesh.nnpg, sizeof(double));
+    mesh.Qp   = (double *)calloc(mesh.nnpg, sizeof(double));
+    mesh.Qs   = (double *)calloc(mesh.nnpg, sizeof(double));
+    // Free the workspace meshes 
+    mesh_memory__free(&meshColumn);
+    for (ielemxy = 0; ielemxy<nelemxy; ielemxy++)
+    {
+        mesh_memory__free(&meshes[ielemxy]);
+    }
+    return mesh;
 }
 //============================================================================//
 
@@ -769,6 +1061,61 @@ static double __tform(double a, double b,
     xi = c1 + x*c2;
     return xi; 
 }
+//============================================================================//
+#ifdef VISIT_WRITER
+int meshio_writeMesh__vtk(const char *flname, struct mesh_struct mesh)
+{
+    const char *fcnm = "meshio_writeMesh__vtk\0";
+    float *pts = (float *)calloc(3*mesh.nnpg, sizeof(float));
+    int *zonetypes = (int *)calloc(mesh.nelem, sizeof(int));
+    float *elems = (float *)calloc(mesh.nelem, sizeof(float));
+    float *nodes = (float *)calloc(mesh.nnpg, sizeof(float));
+    int *connectivity = NULL;
+    int ielem, ierr, inpg, ncon;
+    for (ielem=0; ielem<mesh.nelem; ielem++)
+    {
+        zonetypes[ielem] = VISIT_HEXAHEDRON;
+        elems[ielem] = (float) ielem + 1;
+    }
+    for (inpg=0; inpg<mesh.nnpg; inpg++)
+    {
+        nodes[inpg] = (float) inpg + 1;
+        pts[3*inpg+0] = mesh.xlocs[inpg];
+        pts[3*inpg+1] = mesh.ylocs[inpg];
+        pts[3*inpg+2] = mesh.zlocs[inpg];
+    }
+    ncon = meshio_mesh2connectivity__getSize(mesh.lhomog,
+                                             mesh.nelem,
+                                             mesh.element);
+    connectivity = (int *)calloc(ncon, sizeof(int));
+    ierr = meshio_mesh2connectivity(true, mesh.lhomog, mesh.nelem,
+                                    mesh.element,
+                                    ncon, connectivity);
+    if (ierr != 0)
+    {
+        printf("%s: Failed to set connectivity\n", fcnm);
+    }
+    else
+    {
+        int nvars = 2;
+        int vardims[2] = {1, 1};
+        int centering[2] = {0, 1};
+        const char *varnames[2] = {"ElementNumbers\0", "NodeNumbers\0"};
+        float *vars[] = {elems, nodes};
+        write_unstructured_mesh(flname, 1, mesh.nnpg,
+                                pts, mesh.nelem,
+                                zonetypes, connectivity, nvars,
+                                vardims, centering,
+                                varnames, vars);
+    }
+    free(pts);
+    free(zonetypes);
+    free(elems);
+    free(nodes);
+    if (connectivity != NULL){free(connectivity);}
+    return ierr;
+}
+#endif
 
 /*!
  * @brief Maps a point on the unit box into the isoparametric element

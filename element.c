@@ -5,6 +5,7 @@
 #include <math.h>
 #include <omp.h>
 #include "cvm.h"
+#include "iscl/sorting/sorting.h"
 
 int __mesh_element__setBoundaryConditionList(enum mesh_bc_enum side,
                                              int *bc_list)
@@ -467,17 +468,150 @@ int mesh_element__getIENBoundarySize(int nelem, enum mesh_bc_enum bdry,
     *nelem_bdry = 0;
     *len_ien_bdry = 0;
     // Loop on elements
-    for (ielem=0; ielem<nelem; ielem++){
+    for (ielem=0; ielem<nelem; ielem++)
+    {
         // Loop on element faces
-        for (iface=0; iface<element[ielem].nface; iface++){
+        for (iface=0; iface<element[ielem].nface; iface++)
+        {
             // Element face matches the boundary condition
-            if (element[ielem].bc[iface] == bdry){
+            if (element[ielem].bc[iface] == bdry)
+            {
                 *nelem_bdry = *nelem_bdry + 1;
                 *len_ien_bdry = *len_ien_bdry + element[ielem].ngnod_face;
             }
         } // Loop on element faces
     } // Loop on elements
     return 0;
+}
+//============================================================================//
+/*!
+ * @brief Generates a mapping from anchor nodes to elements to which they
+ *        are connected
+ *
+ * @param[in] nelem               number of elements in mesh
+ * @param[in] nnpg                number of anchor nodes in mesh
+ * @param[in] element             holds the number of anchor nodes and
+ *                                anchor node to global anchor node (ien)
+ *                                map on each element [nelem]
+ *
+ * @param[out] node2element_ptr   maps from the inpg'th node to the
+ *                                start index of node2element [nnpg+1]
+ * @param[out] ierr               0 indicates success
+ *
+ * @result node2element[i1:i2] are the elements attached to the 
+ *         inpg'th node
+ *
+ * @author Ben Baker, ISTI
+ *
+ */
+int *mesh_element__getNode2ElementMap(int nelem, int nnpg,
+                                      struct mesh_element_struct *element,
+                                      int *node2element_ptr,
+                                      int *ierr)
+{
+    const char *fcnm = "mesh_element__getNode2ElementMap\0";
+    int *iwork, *isort, *node2element,
+        i, i1, i2, ia, ielem, inpg, j, maxcons, nwork;
+    // Initialize 
+    *ierr = 0;
+    iwork = NULL;
+    isort = NULL; 
+    node2element = NULL;
+    if (nnpg < 1 || nelem < 1)
+    {
+        if (nelem < 1){printf("%s: Error no elements in mesh\n", fcnm);}
+        if (nnpg < 1){printf("%s: Error no anchor nodes in mesh\n", fcnm);}
+        *ierr = 1;
+        goto ERROR;
+    }
+    iwork = (int *)calloc(nnpg, sizeof(int));
+    // Compute the workspace size
+    maxcons = 0;
+    for (ielem=0; ielem<nelem; ielem++)
+    {
+        for (ia=0; ia<element[ielem].ngnod; ia++)
+        {
+            inpg = element[ielem].ien[ia];
+            iwork[inpg] = iwork[inpg] + 1; 
+            maxcons = fmax(iwork[inpg], maxcons);
+        }
+    }
+    free(iwork);
+    iwork = NULL;
+    // Set the connectivity workspace
+    iwork = (int *)calloc(nnpg*maxcons, sizeof(int));
+    for (i=0; i<nnpg*maxcons; i++)
+    {
+        iwork[i] =-1;
+    }
+    // Fill the workspace with the node to element connectivity
+    nwork = 0;
+    for (ielem=0; ielem<nelem; ielem++)
+    {
+        for (ia=0; ia<element[ielem].ngnod; ia++)
+        {
+            inpg = element[ielem].ien[ia];
+            i1 = maxcons*inpg;
+            i2 = maxcons*(inpg + 1); 
+            for (i=i1; i<i2; i++)
+            {
+                if (iwork[i] == ielem){break;} // Already have it
+                // It's new so add it
+                if (iwork[i] ==-1)
+                {
+                    iwork[i] = ielem;
+                    nwork = nwork + 1;
+                    break;
+                }
+            }
+        }
+    }
+    // Now tally up the connectivity and store it
+    isort = (int *)calloc(maxcons, sizeof(int));
+    node2element = (int *)calloc(nwork, sizeof(int));
+    node2element_ptr[0] = 0;
+    for (inpg=0; inpg<nnpg; inpg++)
+    {
+        i1 = maxcons*inpg;
+        i2 = maxcons*(inpg + 1);  
+        j = 0;
+        for (i=i1; i<i2; i++)
+        {
+            if (iwork[i] ==-1){break;}
+            isort[j] = iwork[i];
+            j = j + 1;
+        }
+        if (j == 0)
+        {
+            printf("%s: This is an internal error; j can't be zero\n", fcnm);
+        }
+        // Sort it for my sanity
+        *ierr = __sorting_sort__int(j, isort, ASCENDING);
+        if (*ierr != 0)
+        {
+            printf("%s: Error sorting %d points\n", fcnm, j);
+            goto ERROR;
+        }
+        // Copy it
+        node2element_ptr[inpg+1] = node2element_ptr[inpg] + j;
+        i1 = node2element_ptr[inpg];
+        i2 = node2element_ptr[inpg+1];
+        j = 0;
+        for (i=i1; i<i2; i++)
+        {
+            node2element[i1+j] = isort[j];
+            j = j + 1;
+        }
+    }
+ERROR:;
+    if (iwork != NULL){free(iwork);}
+    if (isort != NULL){free(isort);}
+    if (*ierr != 0)
+    {
+        free(node2element);
+        node2element = NULL;
+    }
+    return node2element;
 }
 //============================================================================//
 /*!
@@ -511,21 +645,25 @@ int mesh_element__getAnchorNodeProperties(int nelem, int nnpg,
 {
     const char *fcnm = "mesh_element__getAnchorNodeProperties\0";
     int ia, ielem, inpg, ngnod;
-    if (nnpg < 1){ 
+    if (nnpg < 1)
+    {
         printf("%s: Error no anchor nodes in mesh\n", fcnm);
         return -1; 
     }
     #pragma omp simd
-    for (inpg=0; inpg<nnpg; inpg++){
+    for (inpg=0; inpg<nnpg; inpg++)
+    {
         vp[inpg] = 0.0;
         vs[inpg] = 0.0;
         dens[inpg] = 0.0;
     }
     #pragma omp parallel for private(ia, ielem, inpg, ngnod), \
      shared(element, vp, vs, dens)
-    for (ielem=0; ielem<nelem; ielem++){
+    for (ielem=0; ielem<nelem; ielem++)
+    {
         ngnod = element[ielem].ngnod;
-        for (ia=0; ia<ngnod; ia++){
+        for (ia=0; ia<ngnod; ia++)
+        {
             inpg = element[ielem].ien[ia];
             vp[inpg]   = element[ielem].vp[ia];
             vs[inpg]   = element[ielem].vs[ia];
@@ -726,8 +864,10 @@ bool mesh_element__ishomog(int nelem, struct mesh_element_struct *element)
     lhomog = true;
     if (nelem < 1){return lhomog;}
     type0 = element[0].type;
-    for (ielem=1; ielem<nelem; ielem++){
-        if (element[ielem].type != type0){
+    for (ielem=1; ielem<nelem; ielem++)
+    {
+        if (element[ielem].type != type0)
+        {
             lhomog = false;
             break;
         } 

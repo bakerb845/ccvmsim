@@ -5,8 +5,8 @@ MPICC = gcc-5
 F90 = gfortran-5
 INCC = -I./include
 
-CPREFLAGS = -DVISIT_WRITER
-CFLAGS = -O2 -Wall -fopenmp -std=gnu11 -g3
+CPRE_FLAGS = -DVISIT_WRITER
+CFLAGS = -O2 -Wall -fopenmp -std=gnu11 -g3 $(CPRE_FLAGS)
 
 # Find your libraries
 H5_INC = -I/home/bakerb3/Fortran/hdf5-1.8.16/include

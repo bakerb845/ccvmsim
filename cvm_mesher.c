@@ -156,15 +156,14 @@ int main()
     }
     else // Mesh which coarsens with depth
     {
-        ierr = layeredMesh_driver(parms,
+        mesh = layeredMesh_driver(parms,
                                   cvm_model,
-                                  &mesh);
+                                  &ierr);
         if (ierr != 0)
         {
             log_errorF("%s: Error creating layered mesh!\n", fcnm);
             goto ERROR;
         }
-        return 0; 
     }
 /*
     // Set the pointers 

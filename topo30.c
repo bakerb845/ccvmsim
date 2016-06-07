@@ -234,6 +234,9 @@ ERROR:;
  *
  * @author Ben Baker (ISTI)
  * 
+ * @bugs the bisection hunt doesn't work with an irregular mesh and will
+ *       usually default to a linear search
+ *
  */
 int topo30_deformMesh(const char *topofl, int utm_zone,
                       double ztopo_min,
@@ -247,7 +250,7 @@ int topo30_deformMesh(const char *topofl, int utm_zone,
            zmax, zmin, zint_base;
     int *iptrx, *iperm, *mesh2zind,
         i, i1, i2, ierr, iloc, ilocx, ilocy, indx, inpg, nloc,
-        nlocx, npts, npsort, ns;
+        nlinear_search, nlocx, npts, npsort, ns;
     bool *lmask, lsearch, lxdif, lydif;
     const double extra_ll = 0.1; // additional latitude/longitude to add
     const double tol = 1.e-2;    // centimeter accuracy
@@ -449,6 +452,7 @@ int topo30_deformMesh(const char *topofl, int utm_zone,
         return -1;
     }
     // Map each point in the mesh to a point in the interpolated points
+    nlinear_search = 0;
     mesh2zind = (int *)calloc(mesh->nnpg, sizeof(int));
     for (inpg=0; inpg<mesh->nnpg; inpg++)
     {
@@ -472,13 +476,15 @@ int topo30_deformMesh(const char *topofl, int utm_zone,
             }
             else
             {
-                log_warnF("%s: Linearly search in x/y\n", fcnm);
+                //log_warnF("%s: Linearly search in x/y\n", fcnm);
+                nlinear_search = nlinear_search + 1;
                 lsearch = true;
             }
         }
         else // Linearly search for it
         {
-            log_warnF("%s: Linearly searching in x\n", fcnm);
+            //log_warnF("%s: Linearly searching in x\n", fcnm);
+            nlinear_search = nlinear_search + 1;
             lsearch = true;
         } 
         // My clever binary search scheme failed - look the hard way 
@@ -501,6 +507,10 @@ int topo30_deformMesh(const char *topofl, int utm_zone,
             }
         }
         mesh2zind[inpg] = indx; 
+    }
+    if (nlinear_search > 0)
+    {
+        log_infoF("%s: Number of linear searches: %d\n", fcnm);
     }
     // Now interpolate each z value from the interface to the free surface
     for (inpg=0; inpg<mesh->nnpg; inpg++)
