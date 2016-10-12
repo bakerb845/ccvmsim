@@ -1,10 +1,11 @@
 #include <stdbool.h>
 #include <omp.h>
 #include "cvm_struct.h"
+#include "h5_cinter.h"
 #include "topo30.h"
 #include "mesh.h"
-#ifndef __CVM_H__
-#define __CVM_H__
+#ifndef _cvm_h__
+#define _cvm_h__ 1
 #ifdef __cplusplus
 extern "C"
 {
@@ -30,6 +31,8 @@ int cvmio_readLayer(int lay,
                     struct cvm_model_struct *cvm_model);
 char *cvmio_readBinaryFile(char *filename, int *nbytes);
 int cvmio_getBinaryFileSize(char *filename);
+/* Extend the bases of the top two layers */
+int cvm_extendBase(int nlay, struct cvm_model_struct *cvm_model);
 /* Write CVM model */
 int cvmio_write__h5(char *dirnm, char *projnm,
                     int nlay, struct cvm_model_struct *cvm_model);

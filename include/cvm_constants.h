@@ -1,5 +1,11 @@
-#ifndef __CVM_CONSTANTS_H__
-#define __CVM_CONSTANTS_H__
+#ifndef _cvm_constants_h__
+#define _cvm_constants_h__ 1
+
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wmissing-variable-declarations"
+#endif
+
 // These are the constants from Art; the model is composed of 3 distinct
 // layers:  The first, shallowest layer is from [0,1.2] km, the second 
 // intermediate layer is from [1.5,9.9] km, and deepest layer is from 
@@ -36,8 +42,13 @@ const double utm_y0_cvm = 4467300.0; /*!< -129 W - lower left corner (m) */
 const double lat0_cvm = 40.2;        /*!< CVM lower left corner (degrees) */
 const double lon0_cvm = 231.0;       /*!< CVM lower left corner (degrees) */
 const double lat0_cvm_usable = 40.344076;  /*!< Min usable lat (deg) */
-const double lon0_cvm_usable = 231.000000; /*<! Min usable lon (deg) */
-const double lat1_cvm_usable = 49.796694;  /*<! Max usable latitude (deg) */
-const double lon1_cvm_usable = 238.989666; /*<! Max usable longitude (deg) */
+const double lon0_cvm_usable = 231.000000; /*!< Min usable lon (deg) */
+const double lat1_cvm_usable = 49.796694;  /*!< Max usable latitude (deg) */
+const double lon1_cvm_usable = 238.989666; /*!< Max usable longitude (deg) */
 //const double lat0_cvm =-
+
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
+
 #endif /* #ifndef __CVM_CONSTANTS_H__ */

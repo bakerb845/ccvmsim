@@ -5,7 +5,6 @@
 #include <stdint.h>
 #include <math.h>
 #include <omp.h>
-#include <hdf5.h>
 #include <iscl/os/os.h>
 #include <iscl/log/log.h>
 #include "cvm.h"
@@ -17,11 +16,8 @@
 #define NAN_CVM 1.e20
 #define IS_BIG_ENDIAN (*(uint16_t *)"\0\xff" < 0x100)
 
-float __cvm_io_qcFloat_vp(float valin, float val0);
-float __cvm_io_qcFloat_vs(float valin, float val0);
-int h5_write_array__float(char *dset_name, hid_t file_id, int n, float *x);
-int h5_write_array__double(char *dset_name, hid_t file_id, int n, double *x);
-int h5_write_array__int(char *dset_name, hid_t file_id, int n, int *x);
+float __cvm_io_qcFloat_vp(float valin); //, float val0);
+float __cvm_io_qcFloat_vs(float valin); //, float val0);
 void cvmio_write__xdmf(char *dirnm, char *projnm,
                        int nlay, int *nelem, int *nnpg);
 
@@ -29,7 +25,6 @@ void cvmio_write__xdmf(char *dirnm, char *projnm,
  * @brief Loads a layer into into memory.  This function will apply all 
  *        thresholding to the model.
  *
- * @param[in] cvm_moddir     directory where models reside
  * @param[in] lay            layer [1, 2, or 3]
  * @param[in] parms          parameter structure
  *
@@ -53,9 +48,10 @@ int cvmio_readLayer(int lay,
            z, zbeg, zlay_thickness;
     float pval, pval0, sval, sval0;
     int indx_cvm, indx_mod, ix, ixl, ixmax, ixmin, iy, iyl, iymax, iymin,
-        iz, izmax, izmin, jx, jy, jz, lenos, nbytes, nx, nx_mod, ny,
+        iz, izmax, izmin, jx, jy, jz, nbytes, nx, nx_mod, ny,
         ny_mod, nz, nz_mod, nxyz;
     int iway = 1; // UTM -> (lat,lon)
+    size_t lenos;
     bool lswap;
     bool suppress = false;
     // Null out the model
@@ -96,26 +92,26 @@ int cvmio_readLayer(int lay,
     model_vp = cvmio_readBinaryFile(vpfl, &nbytes);
     if (nbytes < 1)
     {
-        log_errorF("%s: Error loading file %s\n", fcnm, vpfl);
+        printf("%s: Error loading file %s\n", fcnm, vpfl);
         return -1;
     }
     if (nbytes != 4*nxyz)
     {
-        log_errorF("%s: Failed to estimate byte size for Vp %d %d\n",
-                   fcnm, nbytes, 4*nxyz);
+        printf("%s: Failed to estimate byte size for Vp %d %d\n",
+               fcnm, nbytes, 4*nxyz);
         return -1; 
     }
     // Read the Vs model
     model_vs = cvmio_readBinaryFile(vsfl, &nbytes);
     if (nbytes < 1)
     {
-        log_errorF("%s: Error loading file %s\n", fcnm, vsfl);
+        printf("%s: Error loading file %s\n", fcnm, vsfl);
         return -1;
     }
     if (nbytes != 4*nxyz)
     {
-        log_errorF("%s: Failed to estimate byte size for Vs %d %d\n",
-                   fcnm, nbytes, 4*nxyz);
+        printf("%s: Failed to estimate byte size for Vs %d %d\n",
+               fcnm, nbytes, 4*nxyz);
         return -1;
     }
     // Get the min location remembering we want the corners for all
@@ -152,23 +148,22 @@ int cvmio_readLayer(int lay,
     }
     if (ixmin > parms.nxl_cvm[lay-1] || ixmax > parms.nxl_cvm[lay-1])
     {
-        log_errorF("%s: Error computing ixmin/ixmax %d %d\n",
+        printf("%s: Error computing ixmin/ixmax %d %d\n",
         fcnm, iymin, iymax);
         return -1; 
     }
     if (iymin > parms.nyl_cvm[lay-1] || iymax > parms.nyl_cvm[lay-1])
     {
-        log_errorF("%s: Error computing iymin/iymax %d %d\n",
-                   fcnm, iymin, iymax);
+        printf("%s: Error computing iymin/iymax %d %d\n",
+               fcnm, iymin, iymax);
         return -1;
     }
     // Figure out the max depth (we need the shallowest layers)
     if (parms.zmin > 0.0)
     {
-        log_warnF("%s: I'm skipping the zmin issue for now\n", fcnm);
+        printf("%s: I'm skipping the zmin issue for now\n", fcnm);
     }
     zlay_thickness = (double) (parms.nzl_cvm[lay-1] - 1)*parms.dzl_cvm[lay-1];
-    //if (lay == 3 && parms.zmax < parms.z0_cvm[lay-1]){
     if (parms.zmax < parms.z0_cvm[lay-1] + zlay_thickness)
     {
         zbeg = parms.z0_cvm[lay-1];
@@ -193,9 +188,9 @@ int cvmio_readLayer(int lay,
     utmy = parms.utm_y0_cvm + (double) iymax*parms.dyl_cvm[lay-1];
     utm_geo(&lon1, &lat1, &utmx, &utmy, &parms.utmzone_cvm, &iway, &suppress);
     if (lon1 < 0.0){lon1 = lon1 + 360.0;}
-    log_infoF("%s: Lower left corner of bounding box: (%f,%f)\n",
+    printf("%s: Lower left corner of bounding box: (%f,%f)\n",
               fcnm, lat0, lon0);
-    log_infoF("%s: Upper right corner of bounding box: (%f,%f)\n",
+    printf("%s: Upper right corner of bounding box: (%f,%f)\n",
               fcnm, lat1, lon1);
     //printf("%d %d %d %d %d %d\n", ixl, iyl, ixmin, iymin, ixmax, iymax);
     // Initializations for Art's quality control
@@ -209,7 +204,7 @@ int cvmio_readLayer(int lay,
     // 2 x 2 x 2 is bad
     if (cvm_model->npts < 8)
     {
-        log_errorF("%s: Error insufficient number of points in model\n", fcnm);
+        printf("%s: Error insufficient number of points in model\n", fcnm);
         return -1;
     }
     cvm_model->nx = nx_mod;
@@ -220,21 +215,29 @@ int cvmio_readLayer(int lay,
     cvm_model->dz = parms.dzl_cvm[lay-1];
     cvm_model->z1 = cvm_model->z0
                   + (double) (izmax - izmin + 1 - 1)*cvm_model->dz;
-    cvm_model->vp   = (double *)calloc(cvm_model->npts, sizeof(double));
-    cvm_model->vs   = (double *)calloc(cvm_model->npts, sizeof(double));
-    cvm_model->dens = (double *)calloc(cvm_model->npts, sizeof(double));
-    cvm_model->Qp   = (double *)calloc(cvm_model->npts, sizeof(double));
-    cvm_model->Qs   = (double *)calloc(cvm_model->npts, sizeof(double));
-    cvm_model->xlocs = (double *)calloc(cvm_model->npts, sizeof(double));
-    cvm_model->ylocs = (double *)calloc(cvm_model->npts, sizeof(double));
-    cvm_model->zlocs = (double *)calloc(cvm_model->npts, sizeof(double));
-    log_infoF("%s: There will be %d points in extracted model\n",
-              fcnm, cvm_model->npts);
+    cvm_model->vp   = (double *)
+                      calloc((size_t) cvm_model->npts, sizeof(double));
+    cvm_model->vs   = (double *)
+                      calloc((size_t) cvm_model->npts, sizeof(double));
+    cvm_model->dens = (double *)
+                      calloc((size_t) cvm_model->npts, sizeof(double));
+    cvm_model->Qp   = (double *)
+                      calloc((size_t) cvm_model->npts, sizeof(double));
+    cvm_model->Qs   = (double *)
+                      calloc((size_t) cvm_model->npts, sizeof(double));
+    cvm_model->xlocs = (double *)
+                       calloc((size_t) cvm_model->npts, sizeof(double));
+    cvm_model->ylocs = (double *)
+                       calloc((size_t) cvm_model->npts, sizeof(double));
+    cvm_model->zlocs = (double *)
+                       calloc((size_t) cvm_model->npts, sizeof(double));
+    printf("%s: There will be %d points in extracted model\n",
+           fcnm, cvm_model->npts);
     // Unpack the CVM binary file. It appears to be packed from deep to shallow.
     // We want the vp and vs models packed with the orientation that z increases
     // down so indx_cvm is reversed like as is done in Art Frankel's original
     // Fortran code
-    log_infoF("%s: Unpacking models...\n", fcnm);
+    printf("%s: Unpacking models...\n", fcnm);
     indx_mod = 0;
     jz = 0;
     for (iz=izmin; iz<=izmax; iz++)
@@ -249,8 +252,8 @@ int cvmio_readLayer(int lay,
                 pval = unpack_float(&model_vp[4*indx_cvm], lswap);
                 sval = unpack_float(&model_vs[4*indx_cvm], lswap);
                 // Quality control
-                pval = __cvm_io_qcFloat_vp(pval, pval0);
-                sval = __cvm_io_qcFloat_vs(sval, sval0);
+                pval = __cvm_io_qcFloat_vp(pval); //, pval0);
+                sval = __cvm_io_qcFloat_vs(sval); //, sval0);
                 // Update
                 pval0 = pval;
                 sval0 = sval;
@@ -272,14 +275,14 @@ int cvmio_readLayer(int lay,
     } // Loop on z
     if (indx_mod != cvm_model->npts)
     {
-        log_errorF("%s: Failed to initialize points\n", fcnm);
+        printf("%s: Failed to initialize points\n", fcnm);
         return -1;
     } 
     // Apply clipping
     if (parms.lthresh_vp)
     {
-        log_infoF("%s: Clipping Vp to range [%f, %f]\n",
-                  fcnm, parms.vp_min, parms.vp_max);
+        printf("%s: Clipping Vp to range [%f, %f]\n",
+               fcnm, parms.vp_min, parms.vp_max);
         #pragma omp simd
         for (indx_mod=0; indx_mod<cvm_model->npts; indx_mod++)
         {
@@ -291,8 +294,8 @@ int cvmio_readLayer(int lay,
     }
     if (parms.lthresh_vs)
     {
-        log_infoF("%s: Clipping Vs to range [%f, %f]\n",
-                  fcnm, parms.vs_min, parms.vs_max);
+        printf("%s: Clipping Vs to range [%f, %f]\n",
+               fcnm, parms.vs_min, parms.vs_max);
         #pragma omp simd
         for (indx_mod=0; indx_mod<cvm_model->npts; indx_mod++)
         {
@@ -305,7 +308,7 @@ int cvmio_readLayer(int lay,
     if (parms.setvp_from_vs || parms.setvs_from_vp)
     {
         if (parms.setvp_from_vs){
-            log_infoF("%s: Setting Vp = %f*Vs\n", fcnm, parms.vpvs_ratio);
+            printf("%s: Setting Vp = %f*Vs\n", fcnm, parms.vpvs_ratio);
             vpvs = parms.vpvs_ratio;
             #pragma omp simd
             for (indx_mod=0; indx_mod<cvm_model->npts; indx_mod++)
@@ -315,7 +318,7 @@ int cvmio_readLayer(int lay,
         }
         else
         {
-            log_infoF("%s: Setting Vs = Vp/%f\n", fcnm, parms.vpvs_ratio);
+            printf("%s: Setting Vs = Vp/%f\n", fcnm, parms.vpvs_ratio);
             vsvp = 1.0/parms.vpvs_ratio;
             #pragma omp simd
             for (indx_mod=0; indx_mod<cvm_model->npts; indx_mod++)
@@ -329,13 +332,12 @@ int cvmio_readLayer(int lay,
     {
         if (parms.lthresh_vpvs)
         {
-            log_infoF("%s: Clipping Vp/Vs to range [%f, %f]\n",
+            printf("%s: Clipping Vp/Vs to range [%f, %f]\n",
                       fcnm, parms.vpvs_min, parms.vpvs_max);
             // Thresholded on Vs so set Vp from that
             if (parms.lthresh_vs && !parms.lthresh_vp)
             {
-                log_infoF("%s: Clipping sets Vp from Vs\n", fcnm);
-                #pragma omp simd
+                printf("%s: Clipping sets Vp from Vs\n", fcnm);
                 for (indx_mod=0; indx_mod<cvm_model->npts; indx_mod++)
                 {
                      vpvs = cvm_model->vp[indx_mod]/cvm_model->vs[indx_mod];
@@ -353,8 +355,7 @@ int cvmio_readLayer(int lay,
             }
             else
             {
-                log_infoF("%s: Clipping sets Vs from Vp\n", fcnm);
-                #pragma omp simd
+                printf("%s: Clipping sets Vs from Vp\n", fcnm);
                 for (indx_mod=0; indx_mod<cvm_model->npts; indx_mod++){
                     vpvs = cvm_model->vp[indx_mod]/cvm_model->vs[indx_mod];
                     if (vpvs < parms.vpvs_min)
@@ -372,8 +373,7 @@ int cvmio_readLayer(int lay,
         }
     }
     // Compute the density
-    log_infoF("%s: Computing density...\n", fcnm);
-    #pragma omp simd
+    printf("%s: Computing density...\n", fcnm);
     for (indx_mod=0; indx_mod<cvm_model->npts; indx_mod++)
     {
         cvm_model->dens[indx_mod] = density_Brocher(cvm_model->vp[indx_mod]);
@@ -469,7 +469,7 @@ int cvmio_write__h5(char *dirnm, char *projnm,
         nelemSave[ilay] = nelem;
         // Allocate space for connectivity
         ncon = 8*nelem;
-        ien = (int *)calloc(ncon, sizeof(int));
+        ien = (int *)calloc((size_t) ncon, sizeof(int));
         ierr = regmesh_makeHexIEN(nx, ny, nz, ien);
         if (ierr != 0){
             printf("%s: Error making hex mesh!\n", fcnm);
@@ -484,9 +484,9 @@ int cvmio_write__h5(char *dirnm, char *projnm,
         // Generate the (x, y, z) locations 
         ierr = regmesh_getNumberOfAnchorNodes(nx, ny, nz, &nnpg);
         nnpgSave[ilay] = nnpg;
-        xlocs = (double *)calloc(nnpg, sizeof(double));
-        ylocs = (double *)calloc(nnpg, sizeof(double));
-        zlocs = (double *)calloc(nnpg, sizeof(double));
+        xlocs = (double *)calloc((size_t) nnpg, sizeof(double));
+        ylocs = (double *)calloc((size_t) nnpg, sizeof(double));
+        zlocs = (double *)calloc((size_t) nnpg, sizeof(double));
         /*
         __regmesh_makeRegularNodes(nx, ny, nz,
                                    dx, dy, dz,
@@ -498,9 +498,9 @@ int cvmio_write__h5(char *dirnm, char *projnm,
             ylocs[inpg] = cvm_model[ilay].ylocs[inpg];
             zlocs[inpg] = cvm_model[ilay].zlocs[inpg];
         }
-        xlocs4 = (float *)calloc(nnpg, sizeof(float));
-        ylocs4 = (float *)calloc(nnpg, sizeof(float));
-        zlocs4 = (float *)calloc(nnpg, sizeof(float));
+        xlocs4 = (float *)calloc((size_t) nnpg, sizeof(float));
+        ylocs4 = (float *)calloc((size_t) nnpg, sizeof(float));
+        zlocs4 = (float *)calloc((size_t) nnpg, sizeof(float));
         for (inpg=0; inpg<nnpg; inpg++){
             xlocs4[inpg] = (float) xlocs[inpg];
             ylocs4[inpg] = (float) ylocs[inpg];
@@ -533,11 +533,11 @@ int cvmio_write__h5(char *dirnm, char *projnm,
         zlocs4 = NULL;
 
         // Set the material properties
-        vp = (double *)calloc(nnpg, sizeof(double));
-        vs = (double *)calloc(nnpg, sizeof(double));
-        dens = (double *)calloc(nnpg, sizeof(double));
-        Qp = (double *)calloc(nnpg, sizeof(double));
-        Qs = (double *)calloc(nnpg, sizeof(double));
+        vp = (double *)calloc((size_t) nnpg, sizeof(double));
+        vs = (double *)calloc((size_t) nnpg, sizeof(double));
+        dens = (double *)calloc((size_t) nnpg, sizeof(double));
+        Qp = (double *)calloc((size_t) nnpg, sizeof(double));
+        Qs = (double *)calloc((size_t) nnpg, sizeof(double));
         __regmesh_copyRegularModel(lflip, nx, ny, nz,
                                    cvm_model[ilay].vp,
                                    cvm_model[ilay].vs,
@@ -545,11 +545,11 @@ int cvmio_write__h5(char *dirnm, char *projnm,
                                    cvm_model[ilay].Qp,
                                    cvm_model[ilay].Qs,
                                    vp, vs, dens, Qp, Qs);
-        vp4 = (float *)calloc(nnpg, sizeof(float));
-        vs4 = (float *)calloc(nnpg, sizeof(float));
-        dens4 = (float *)calloc(nnpg, sizeof(float));
-        Qp4 = (float *)calloc(nnpg, sizeof(float));
-        Qs4 = (float *)calloc(nnpg, sizeof(float));
+        vp4 = (float *)calloc((size_t) nnpg, sizeof(float));
+        vs4 = (float *)calloc((size_t) nnpg, sizeof(float));
+        dens4 = (float *)calloc((size_t) nnpg, sizeof(float));
+        Qp4 = (float *)calloc((size_t) nnpg, sizeof(float));
+        Qs4 = (float *)calloc((size_t) nnpg, sizeof(float));
         for (inpg=0; inpg<nnpg; inpg++){
             vp4[inpg]   = (float) vp[inpg];
             vs4[inpg]   = (float) vs[inpg];
@@ -720,18 +720,19 @@ void cvmio_write__xdmf(char *dirnm, char *projnm,
  *        previous grid point. Otherwise, we return valin
  *
  * @param[in] valin     Vp value to quality control
- * @param[in] val0      this is the Vp material value at the previous grid point
- * @param[in] NaN       value of not a number in binary file
  *
  * @result the quality controlled p velocity
  * 
  */
-float __cvm_io_qcFloat_vp(float valin, float val0)
+float __cvm_io_qcFloat_vp(float valin)
 {
      float val = valin;
      // Fix NaN's
-     if (val >= NAN_CVM - 1.e-4){val = VP_DEFAULT;} //2300.0;}
-     if (val < VMIN_CVM || val > VMAX_CVM){val = VP_DEFAULT;} //val0;}
+     if ((double) val >= NAN_CVM - 1.e-4){val = VP_DEFAULT;} //2300.0;}
+     if ((double) val < VMIN_CVM || (double) val > VMAX_CVM)
+     {
+         val = VP_DEFAULT;
+     }
      return val;
 }
 //============================================================================//
@@ -743,17 +744,19 @@ float __cvm_io_qcFloat_vp(float valin, float val0)
  *        previous grid point. Otherwise, we return valin
  *
  * @param[in] valin     Vs value to quality control
- * @param[in] val0      this is the VS material value at the previous grid point
  *
  * @result the quality controlled s velocity 
  * 
  */
-float __cvm_io_qcFloat_vs(float valin, float val0)
+float __cvm_io_qcFloat_vs(float valin) //, float val0)
 {
      float val = valin;
      // Fix NaN's
-     if (val >= NAN_CVM - 1.e-4){val = VS_DEFAULT;} //1333.0;}
-     if (val < VMIN_CVM || val > VMAX_CVM){val = VS_DEFAULT;}//val0;}
+     if ((double) val >= NAN_CVM - 1.e-4){val = VS_DEFAULT;} //1333.0;}
+     if ((double) val < VMIN_CVM || (double) val > VMAX_CVM)
+     {
+         val = VS_DEFAULT;
+     }
      return val;
 }
 //============================================================================//
@@ -781,21 +784,23 @@ char *cvmio_readBinaryFile(char *filename, int *nbytes)
     // Get size
     *nbytes = 0;
     *nbytes = cvmio_getBinaryFileSize(filename);
-    if (*nbytes < 1){
-        log_errorF("%s: Error reading binary file\n",fcnm);
+    if (*nbytes < 1)
+    {
+        printf("%s: Error reading binary file\n",fcnm);
         return NULL;
     }
     // Set space
-    buffer = (char *)calloc(*nbytes, sizeof(char));
-    if (buffer == NULL){
+    buffer = (char *)calloc((size_t) (*nbytes), sizeof(char));
+    if (buffer == NULL)
+    {
         *nbytes =-1;
-        log_errorF("%s: Error loading file\n", fcnm);
+        printf("%s: Error loading file\n", fcnm);
         return NULL;
     }
     // Load file 
     bfile = fopen(filename, "rb");
-    nread = fread(buffer,sizeof(buffer), *nbytes, bfile);
-    if (nread < 1){log_errorF("%s: Possible no items were read\n", fcnm);}
+    nread = (int) (fread(buffer,sizeof(buffer), (size_t) *nbytes, bfile));
+    if (nread < 1){printf("%s: Possible no items were read\n", fcnm);}
     fclose(bfile);
     return buffer;
 }
@@ -816,13 +821,13 @@ int cvmio_getBinaryFileSize(char *filename)
     FILE *f;
     int size;
     if (!os_path_isfile(filename)){
-        log_errorF("%s: File %s does not exist!\n", fcnm, filename);
+        printf("%s: File %s does not exist!\n", fcnm, filename);
         return 0;
     }
     f = fopen(filename, "rb");
     if (f == NULL) return -1;
     fseek(f, 0, SEEK_END);
-    size = ftell(f);
+    size = (int) (ftell(f));
     fclose(f);
     return size;
 }

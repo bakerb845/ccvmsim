@@ -111,9 +111,9 @@ struct mesh_struct layeredMesh_healMesh(int nmeshes,
         printf("%s: Error sorting z\n", fcnm);
         goto ERROR;
     } 
-    *ierr  = sorting_applyPermutation__double(nwork, iperm, x, x);
-    *ierr += sorting_applyPermutation__double(nwork, iperm, y, y);
-    *ierr += sorting_applyPermutation__double(nwork, iperm, z, z);
+    *ierr  = __sorting_applyPermutation__double(nwork, iperm, x, x);
+    *ierr += __sorting_applyPermutation__double(nwork, iperm, y, y);
+    *ierr += __sorting_applyPermutation__double(nwork, iperm, z, z);
     if (*ierr != 0)
     {
         printf("%s: Error applying permutation\n", fcnm);
@@ -140,10 +140,10 @@ struct mesh_struct layeredMesh_healMesh(int nmeshes,
                     printf("%s: Error sorting y\n", fcnm);
                     goto ERROR;
                 }
-                *ierr  = sorting_applyPermutation__double(npsort, iperm,
-                                                          &x[i1], &x[i1]);
-                *ierr += sorting_applyPermutation__double(npsort, iperm,
-                                                          &y[i1], &y[i1]);
+                *ierr  = __sorting_applyPermutation__double(npsort, iperm,
+                                                            &x[i1], &x[i1]);
+                *ierr += __sorting_applyPermutation__double(npsort, iperm,
+                                                            &y[i1], &y[i1]);
                 if (*ierr != 0)
                 {
                     printf("%s: Error applying permutation 2\n", fcnm);
@@ -555,8 +555,8 @@ struct mesh_struct layeredMesh_makeVerticalColumn(int nc,
             nzl = (int) ((zmax - z0l)/dzl + 0.5) + 1;
             if ((double) (nzl - 1)*dzl > zmax - z0l){nzl = nzl - 1;}
         }
-        // Make sure we finish with at least one point 
-        if (nzl < 1)
+        // Make sure we finish with at least one element (2 points)
+        if (nzl < 2)
         {
             printf("%s: Error no points in layer %d\n", fcnm, il+1);
             return meshColumn;
@@ -594,6 +594,17 @@ struct mesh_struct layeredMesh_makeVerticalColumn(int nc,
             *nelemy_surf = nelemy;
         }
         nelemz = nz - 1;
+        if (nelemz < 2)
+        {
+            *ierr = 1;
+            if (nelemz == 1)
+            {
+                printf("%s: Error will overwrite x1, x2, y1, y2; need to copy\n"
+                       , fcnm);
+            }
+            printf("%s: Insufficient number of z elements\n", fcnm);
+            return meshColumn;
+        }
         if (il < nl - 1){printf("\n");}
         printf("%s: Meshing layer: %d\n", fcnm, il+1);
         printf("%s: This layer goes from %f to %f\n", fcnm, z0l, z1l);
@@ -663,11 +674,12 @@ struct mesh_struct layeredMesh_makeVerticalColumn(int nc,
             printf("%s: Failed setting anchor node locations\n", fcnm);
             return meshColumn;
         }
-        // Apply the template to the top element in this layer
+        // Apply the template to the top elements in this layer
         if (ipad > 0)
         {
-            // Get the nnpg offset.  Note, the regular mesher works z
-            // positive up so take the second to last element in the mesh
+            // Get the first element for top of this mesh layer.
+            // Note, the regular mesher works z positive up so take
+            // the second to last element in the mesh
             if (mesh[jl].nelem == 1)
             {
                 lastElem = 0;

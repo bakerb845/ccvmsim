@@ -1,6 +1,6 @@
 #include <limits.h>
-#ifndef __CVM_STRUCT_H__
-#define __CVM_STRUCT_H__
+#ifndef _cvm_struct_h__
+#define _cvm_struct_h__ 1
 
 enum mesh_element_type
 {
@@ -100,6 +100,7 @@ struct mesh_struct
                                If false element contains integer pointers
                                and material information */
     bool lhomog;          /*!< True then the mesh is homogeneous */
+    char pad[6];
 };
 
 
@@ -179,6 +180,7 @@ struct cvm_parms_struct
                                       vpvs_ratio */
     bool setvs_from_vp;          /*!< If true then compute Vs from Vp using
                                       vpvs_ratoi */ 
+    char pad[1];
 };
 
 struct cvm_model_struct

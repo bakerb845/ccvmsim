@@ -95,7 +95,7 @@ int regmesh_makeHexIEN(int nx, int ny, int nz, int *ien)
 /*!
  * @brief Generates pointers for a regular hexahedral mesh
  *
- * @reference http://prod.sandia.gov/techlib/access-control.cgi/1992/922137.pdf
+ * @note http://prod.sandia.gov/techlib/access-control.cgi/1992/922137.pdf
  *
  * @param[in] nx         number of grid points in x (> 1)
  * @param[in] ny         number of grid points in y (> 1)
@@ -234,7 +234,7 @@ int regmesh_makeHexMeshPointers(int nx, int ny, int nz,
  * @param[in] Qp           P wave quality factor
  * @param[in] Qs           S wave quality factor
  *
- * @param[inout] element   on input contains the number of anchor nodes
+ * @param[in,out] element  on input contains the number of anchor nodes
  *                         on each element
  *                         on output now includes the compressional
  *                         and shear velocities and the density at 
@@ -252,11 +252,11 @@ void regmesh_constantMaterialModel(double vp, double vs, double dens,
     for (ielem=0; ielem<nelem; ielem++)
     {
         ngnod = element[ielem].ngnod;
-        element[ielem].vp   = (double *)calloc(ngnod, sizeof(double));
-        element[ielem].vs   = (double *)calloc(ngnod, sizeof(double));
-        element[ielem].dens = (double *)calloc(ngnod, sizeof(double));
-        element[ielem].Qp = (double *)calloc(ngnod, sizeof(double));
-        element[ielem].Qs = (double *)calloc(ngnod, sizeof(double));
+        element[ielem].vp   = (double *)calloc((size_t) ngnod, sizeof(double));
+        element[ielem].vs   = (double *)calloc((size_t) ngnod, sizeof(double));
+        element[ielem].dens = (double *)calloc((size_t) ngnod, sizeof(double));
+        element[ielem].Qp = (double *)calloc((size_t) ngnod, sizeof(double));
+        element[ielem].Qs = (double *)calloc((size_t) ngnod, sizeof(double));
         for (ia=0; ia<ngnod; ia++)
         {
             element[ielem].vp[ia] = vp;
@@ -277,7 +277,6 @@ void regmesh_constantMaterialModel(double vp, double vs, double dens,
  * @param[in] nx        number of x grid points
  * @param[in] ny        number of y grid points
  * @param[in] nz        number of z grid points
- * @param[in] nelem     number of elements in mesh
  * @param[in] vp        compressional velocity to copy to element struct
  *                      [nx*ny*nz]
  * @param[in] vs        shear velocity to copy to element structure
@@ -350,23 +349,24 @@ void __regmesh_copyRegularModel(bool lflip, int nx, int ny, int nz,
  * @brief Copies a regular model ordered fastest in x, intermediate in y,
  *        and slowest in z to the element structure
  *
- * @param[in] lflip       If True then flip the z axis
- * @param[in] nx          number of x grid points
- * @param[in] ny          number of y grid points
- * @param[in] nz          number of z grid points
- * @param[in] nelem       number of elements in mesh
- * @param[in] nnpg        number of anchor nodes in mesh (nx*ny*nz)
- * @param[in] vp          compressional velocity to copy to element struct [nnpg]
- * @param[in] vs          shear velocity to copy to element structure [nnpg] 
- * @param[in] dens        density to copy to element structure [nnpg]
- * @param[in] Qp          P velocity quality factor to copy to element struct
- *                        [nnpg]
- * @param[in] Qs          S velocity quality factor to copy to element struct
- *                        [nnpg] 
+ * @param[in] lflip        if true then flip the z axis
+ * @param[in] nx           number of x grid points
+ * @param[in] ny           number of y grid points
+ * @param[in] nz           number of z grid points
+ * @param[in] nelem        number of elements in mesh
+ * @param[in] nnpg         number of anchor nodes in mesh (nx*ny*nz)
+ * @param[in] vp           compressional velocity to copy to element struct
+ *                         [nnpg]
+ * @param[in] vs           shear velocity to copy to element structure [nnpg] 
+ * @param[in] dens         density to copy to element structure [nnpg]
+ * @param[in] Qp           P velocity quality factor to copy to element struct
+ *                         [nnpg]
+ * @param[in] Qs           S velocity quality factor to copy to element struct
+ *                         [nnpg] 
  *
- * @param[inout] element  on input holds the IEN array for each element
- *                        and space for the material arrays
- *                        on output holds the materials on each element
+ * @param[in,out] element  on input holds the IEN array for each element
+ *                         and space for the material arrays
+ *                         on output holds the materials on each element
  *
  * @author Ben Baker, ISTI
  */
@@ -400,11 +400,11 @@ int regmesh_copyRegularModel(bool lflip, int nx, int ny, int nz,
     // Pack the flipped model 
     if (lflip)
     {
-        vpw  = (double *)calloc(nnpg, sizeof(double));
-        vsw  = (double *)calloc(nnpg, sizeof(double));
-        densw = (double *)calloc(nnpg, sizeof(double));
-        Qpw = (double *)calloc(nnpg, sizeof(double));
-        Qsw = (double *)calloc(nnpg, sizeof(double));
+        vpw  = (double *)calloc((size_t) nnpg, sizeof(double));
+        vsw  = (double *)calloc((size_t) nnpg, sizeof(double));
+        densw = (double *)calloc((size_t) nnpg, sizeof(double));
+        Qpw = (double *)calloc((size_t) nnpg, sizeof(double));
+        Qsw = (double *)calloc((size_t) nnpg, sizeof(double));
         __regmesh_copyRegularModel(lflip, nx, ny, nz, 
                                    vp, vs, dens, Qp, Qs,
                                    vpw, vsw, densw, Qpw, Qsw);
@@ -444,9 +444,9 @@ int regmesh_copyRegularModel(bool lflip, int nx, int ny, int nz,
  * @param[in] ny       number of grid points in y (> 0)
  * @param[in] nz       number of grid points in z (> 0)
  *
- * @param[out] nelem   number of elements in hexahedral mesh
+ * @param[out] nnpg    number of anchor nodes in hex mesh 
  *
- * @result number of elements in regular hex mesh
+ * @result 0 indicates success
  *
  * @author Ben Baker, ISTI
  *
@@ -461,12 +461,12 @@ int regmesh_getNumberOfAnchorNodes(int nx, int ny, int nz, int *nnpg)
     }
     if (ny < 1)
     {
-        log_errorF("%s: Invalid number of x grid points %d\n", fcnm, ny);
+        log_errorF("%s: Invalid number of y grid points %d\n", fcnm, ny);
         return -1;
     }
     if (nz < 1)
     {
-        log_errorF("%s: Invalid number of x grid points %d\n", fcnm, nz);
+        log_errorF("%s: Invalid number of z grid points %d\n", fcnm, nz);
         return -1;
     }
     *nnpg = nx*ny*nz;
@@ -523,21 +523,21 @@ void __regmesh_makeRegularNodes(int nx, int ny, int nz,
 /*!
  * @brief Determines anchor node locations in a regular mesh 
  *
- * @param[in] nx          number of grid points in x (> 0)
- * @param[in] ny          number of grid points in y (> 0)
- * @param[in] nz          number of grid points in z (> 0)
- * @param[in] dx          grid spacing in x
- * @param[in] dy          grid spacing in y
- * @param[in] dz          grid spacing in z
- * @param[in] x0          x origin
- * @param[in] y0          y origin
- * @param[in] z0          z origin
- * @param[in] nelem       number of elements in mesh
+ * @param[in] nx           number of grid points in x (> 0)
+ * @param[in] ny           number of grid points in y (> 0)
+ * @param[in] nz           number of grid points in z (> 0)
+ * @param[in] dx           grid spacing in x
+ * @param[in] dy           grid spacing in y
+ * @param[in] dz           grid spacing in z
+ * @param[in] x0           x origin
+ * @param[in] y0           y origin
+ * @param[in] z0           z origin
+ * @param[in] nelem        number of elements in mesh
  *
- * @param[inout] element  on input holds the number of elements and
- *                        space for the (x,y,z) locations [nelem]
- *                        on output contains the positions of each 
- *                        anchor node on all elements 
+ * @param[in,out] element  on input holds the number of elements and
+ *                         space for the (x,y,z) locations [nelem].
+ *                         on output contains the positions of each 
+ *                         anchor node on all elements 
  *
  * @result number of elements in regular hex mesh
  *
@@ -559,9 +559,9 @@ int regmesh_makeRegularNodes(int nx, int ny, int nz,
         printf("%s: Error no elements in mesh\n", fcnm);
         return -1;
     }
-    xlocs = (double *)calloc(nnpg, sizeof(double));
-    ylocs = (double *)calloc(nnpg, sizeof(double));
-    zlocs = (double *)calloc(nnpg, sizeof(double));
+    xlocs = (double *)calloc((size_t) nnpg, sizeof(double));
+    ylocs = (double *)calloc((size_t) nnpg, sizeof(double));
+    zlocs = (double *)calloc((size_t) nnpg, sizeof(double));
     // Set the points
     __regmesh_makeRegularNodes(nx, ny, nz, 
                                dx, dy, dz, 

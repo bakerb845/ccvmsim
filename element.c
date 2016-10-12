@@ -147,7 +147,7 @@ int mesh_element__getIENBoundary(int nelem, bool lhomog,
                                  struct mesh_element_struct *element,
                                  int nelem_bdry, int *ien_bdry_ptr,
                                  int *bdry2glob_elem,
-                                 int lenien_bdry, int *ien_bdry)
+                                 int *ien_bdry)
 {
     const char *fcnm = "mesh_element__getIENBoundary\0";
     const int nbc = 3;
@@ -192,6 +192,7 @@ int mesh_element__getIENBoundary(int nelem, bool lhomog,
     }else{
 printf("not done!\n");
 return -1;
+/*
         ielem_bdry = 0;
         for (ielem=0; ielem<nelem; ielem++){
             if (element[ielem].bc[iface] == NO_BC){continue;}
@@ -205,6 +206,7 @@ return -1;
                 }
             }
         } // Loop on elements
+*/
     }
     return 0;
 }
@@ -335,7 +337,7 @@ int mesh_element__getNumberOfAnchorNodes(bool cnum, int nelem,
         ngnod = element[ielem].ngnod;
         for (ia=0; ia<ngnod; ia++)
         {
-            nnpg = fmax(nnpg, element[ielem].ien[ia]);
+            nnpg = (int) (fmax(nnpg, element[ielem].ien[ia]));
         }
     }
     if (cnum){nnpg = nnpg + 1;}
@@ -400,11 +402,9 @@ int mesh_element__getAnchorNodeLocations(int nelem, int nnpg,
  * @param[in] bdry             desired boundary
  * @param[in] element          holds the element faces' boundary conditions
  *                             [nelem]
- * @param[in] nelem_bdry       number of elements on this boundary
  * @param[out] ien_bdry_ptr    maps from ielem_bdry'th element to start 
  *                             index of ien_bdry [nelem_bdry+1]
  *
- * @param[in] len_ien_bdry     length of ien_bdry
  * @param[out] ien_bdry        holds the global anchor node number of the 
  *                             ia'th anchor node on the ielem_bdry'th 
  *                             boundary element
@@ -414,8 +414,8 @@ int mesh_element__getAnchorNodeLocations(int nelem, int nnpg,
  */
 int mesh_element__getBoundarySurface(int nelem, enum mesh_bc_enum bdry,
                                      struct mesh_element_struct *element,
-                                     int nelem_bdry, int *ien_bdry_ptr,
-                                     int len_ien_bdry, int *ien_bdry)
+                                     int *ien_bdry_ptr,
+                                     int *ien_bdry)
 {
     int ia, ielem, ielem_bdry, iface, indx, jndx;
     ielem_bdry = 0;
@@ -524,7 +524,7 @@ int *mesh_element__getNode2ElementMap(int nelem, int nnpg,
         *ierr = 1;
         goto ERROR;
     }
-    iwork = (int *)calloc(nnpg, sizeof(int));
+    iwork = (int *)calloc((size_t) nnpg, sizeof(int));
     // Compute the workspace size
     maxcons = 0;
     for (ielem=0; ielem<nelem; ielem++)
@@ -533,13 +533,13 @@ int *mesh_element__getNode2ElementMap(int nelem, int nnpg,
         {
             inpg = element[ielem].ien[ia];
             iwork[inpg] = iwork[inpg] + 1; 
-            maxcons = fmax(iwork[inpg], maxcons);
+            maxcons = (int) (fmax(iwork[inpg], maxcons));
         }
     }
     free(iwork);
     iwork = NULL;
     // Set the connectivity workspace
-    iwork = (int *)calloc(nnpg*maxcons, sizeof(int));
+    iwork = (int *)calloc((size_t) (nnpg*maxcons), sizeof(int));
     for (i=0; i<nnpg*maxcons; i++)
     {
         iwork[i] =-1;
@@ -567,8 +567,8 @@ int *mesh_element__getNode2ElementMap(int nelem, int nnpg,
         }
     }
     // Now tally up the connectivity and store it
-    isort = (int *)calloc(maxcons, sizeof(int));
-    node2element = (int *)calloc(nwork, sizeof(int));
+    isort = (int *)calloc((size_t) maxcons, sizeof(int));
+    node2element = (int *)calloc((size_t) nwork, sizeof(int));
     node2element_ptr[0] = 0;
     for (inpg=0; inpg<nnpg; inpg++)
     {
@@ -678,16 +678,16 @@ int mesh_element__getAnchorNodeProperties(int nelem, int nnpg,
 /*!
  * @brief Sets the element anchor node locations
  *
- * @param[in] nelem       number of elements in mesh
- * @param[in] nnpg        number of anchor nodes in mesh
- * @param[in] xlocs       x anchor node locations [nnpg]
- * @param[in] ylocs       y anchor node locations [nnpg]
- * @param[in] zlocs       z anchor node locations [nnpg]
+ * @param[in] nelem        number of elements in mesh
+ * @param[in] nnpg         number of anchor nodes in mesh
+ * @param[in] xlocs        x anchor node locations [nnpg]
+ * @param[in] ylocs        y anchor node locations [nnpg]
+ * @param[in] zlocs        z anchor node locations [nnpg]
  *
- * @param[inout] element  on entry contains the element element structure
- *                        with number of anchor nodes per element and 
- *                        array space pre-allocated for x, y, and z 
- *                        on exit the x, y, and z arrays for each element
+ * @param[in,out] element  on entry contains the element element structure
+ *                         with number of anchor nodes per element and 
+ *                         array space pre-allocated for x, y, and z 
+ *                         on exit the x, y, and z arrays for each element
  *                        
  * @result 0 indicates success
  * 
@@ -729,18 +729,18 @@ int mesh_element__setAnchorNodeLocations(int nelem, int nnpg,
 }
 //============================================================================//
 /*!
- * @param[in] nelem       number of elements in mesh 
- * @param[in] vp          compressional velocity at anchor nodes [nnpg]
- * @param[in] vs          shear velocity at anchor nodes [nnpg]
- * @param[in] dens        density at anchor nodes [nnpg]
- * @param[in] Qp          P quality factor at anchor nodes [nnpg]
- * @param[in] Qs          S quality factor at anchor nodes [nnpg]
+ * @param[in] nelem        number of elements in mesh 
+ * @param[in] vp           compressional velocity at anchor nodes [nnpg]
+ * @param[in] vs           shear velocity at anchor nodes [nnpg]
+ * @param[in] dens         density at anchor nodes [nnpg]
+ * @param[in] Qp           P quality factor at anchor nodes [nnpg]
+ * @param[in] Qs           S quality factor at anchor nodes [nnpg]
  *
- * @param[inout] element  on entry contains the element element structure
- *                        with number of anchor nodes per element and 
- *                        array space pre-allocated for vp, vs, and dens
- *                        on exit the vp, vs, dens, Qp, and Qs, arrays for
- *                        each element
+ * @param[in,out] element  on entry contains the element element structure
+ *                         with number of anchor nodes per element and 
+ *                         array space pre-allocated for vp, vs, and dens
+ *                         on exit the vp, vs, dens, Qp, and Qs, arrays for
+ *                         each element
  *
  * @result 0 indicates success
  *
@@ -788,9 +788,9 @@ int mesh_element__setAnchorNodeProperties(int nelem, int nnpg,
 /*!
  * @brief Releses the memory on the element structure
  *
- * @param[in] nelem       number of elements in mesh (> 1)
+ * @param[in] nelem        number of elements in mesh (> 1)
  *
- * @param[inout] element  freed array of element structures [nelem]
+ * @param[in,out] element  freed array of element structures [nelem]
  *
  * @author Ben Baker, ISTI
  *
@@ -822,7 +822,7 @@ void mesh_element_memory__free(int nelem,
 /*!
  * @brief Frees the memory on the mesh structure
  *
- * @param[inout] mesh      on input contains the mesh structure
+ * @param[in,out] mesh     on input contains the mesh structure
  *                         on output all pointers on the mesh structure
  *                         have been freed
  *
@@ -998,7 +998,7 @@ int mesh_element_type2numAnchorNodesPerFace(enum mesh_element_type type)
  * @param[in] type         defines the element type (use HEX8)
  * @param[in] nelem        number of elements in mesh (length of element)
  *
- * @param[inout] element   on input this is the nelem length element structure
+ * @param[in,out] element  on input this is the nelem length element structure
  *                         on output each integer pointer has been allocated
  *                         [nelem]
  *
@@ -1025,10 +1025,10 @@ int mesh_element_memory__allocateIntegerPointers(
     npface = ngnod_face*nface;
     for (ielem=0; ielem<nelem; ielem++)
     {
-        element[ielem].ien_face = (int *)calloc(npface, sizeof(int));
-        element[ielem].ien      = (int *)calloc(ngnod,  sizeof(int));
-        element[ielem].bc       = (int *)calloc(nface,  sizeof(int));
-        element[ielem].neighbor = (int *)calloc(nface,  sizeof(int));
+        element[ielem].ien_face = (int *)calloc((size_t) npface, sizeof(int));
+        element[ielem].ien      = (int *)calloc((size_t) ngnod,  sizeof(int));
+        element[ielem].bc       = (int *)calloc((size_t) nface,  sizeof(int));
+        element[ielem].neighbor = (int *)calloc((size_t) nface,  sizeof(int));
         for (ia=0; ia<nface; ia++){element[ielem].neighbor[ia] =-1;}
         element[ielem].nface = nface;
         element[ielem].ngnod = ngnod;
@@ -1047,7 +1047,7 @@ int mesh_element_memory__allocateIntegerPointers(
  * @param[in] type         defines the element type (use HEX8)
  * @param[in] nelem        number of elements in mesh (length of element)
  *
- * @param[inout] element   on input this is the nelem length element structure
+ * @param[in,out] element  on input this is the nelem length element structure
  *                         on output each material pointer has been allocated
  *                         [nelem]
  *
@@ -1071,14 +1071,14 @@ int mesh_element_memory__allocateMaterialPointers(
     }
     for (ielem=0; ielem<nelem; ielem++)
     {
-        element[ielem].vp   = (double *)calloc(ngnod, sizeof(double));
-        element[ielem].vs   = (double *)calloc(ngnod, sizeof(double));
-        element[ielem].dens = (double *)calloc(ngnod, sizeof(double));
-        element[ielem].Qp   = (double *)calloc(ngnod, sizeof(double));
-        element[ielem].Qs   = (double *)calloc(ngnod, sizeof(double)); 
-        element[ielem].x    = (double *)calloc(ngnod, sizeof(double));
-        element[ielem].y    = (double *)calloc(ngnod, sizeof(double));
-        element[ielem].z    = (double *)calloc(ngnod, sizeof(double));
+        element[ielem].vp   = (double *)calloc((size_t) ngnod, sizeof(double));
+        element[ielem].vs   = (double *)calloc((size_t) ngnod, sizeof(double));
+        element[ielem].dens = (double *)calloc((size_t) ngnod, sizeof(double));
+        element[ielem].Qp   = (double *)calloc((size_t) ngnod, sizeof(double));
+        element[ielem].Qs   = (double *)calloc((size_t) ngnod, sizeof(double)); 
+        element[ielem].x    = (double *)calloc((size_t) ngnod, sizeof(double));
+        element[ielem].y    = (double *)calloc((size_t) ngnod, sizeof(double));
+        element[ielem].z    = (double *)calloc((size_t) ngnod, sizeof(double));
     }
     return 0;
 }

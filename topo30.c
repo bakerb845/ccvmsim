@@ -350,8 +350,8 @@ int topo30_deformMesh(const char *topofl, int utm_zone,
         return -1;
     }
     ierr = 0;
-    ierr += sorting_applyPermutation__double(npts, iperm, xlocs, xlocs);
-    ierr += sorting_applyPermutation__double(npts, iperm, ylocs, ylocs);
+    ierr += __sorting_applyPermutation__double(npts, iperm, xlocs, xlocs);
+    ierr += __sorting_applyPermutation__double(npts, iperm, ylocs, ylocs);
     if (ierr != 0)
     {
         log_errorF("%s: Error permuting xlocs and/or ylocs\n", fcnm);
@@ -438,14 +438,14 @@ int topo30_deformMesh(const char *topofl, int utm_zone,
         if (lon_int[i] < 0.0){lon_int[i] = lon_int[i] + 360.0;}
     }
     // Now interpolate each point
-    topo_int = interpolate_interp2d(topo.nlon, topo.lons,
-                                    topo.nlat, topo.lats,
-                                    topo.ntopo, topo.topo,
-                                    nloc, lon_int,
-                                    nloc, lat_int,
-                                    BILINEAR,
-                                    false,
-                                    &nloc, &ierr);
+    topo_int = interpolate_interp2d_gsl(topo.nlon, topo.lons,
+                                        topo.nlat, topo.lats,
+                                        topo.ntopo, topo.topo,
+                                        nloc, lon_int,
+                                        nloc, lat_int,
+                                        BILINEAR,
+                                        false,
+                                        &nloc, &ierr);
     if (ierr != 0)
     {
         log_errorF("%s: Error interpolating topography\n", fcnm);

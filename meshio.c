@@ -3,8 +3,8 @@
 #include <stdbool.h>
 #include <limits.h>
 #include <string.h>
+#include <math.h>
 #include <omp.h>
-#include <hdf5.h>
 #include "cvm.h"
 #include "h5_cinter.h"
 #include "iscl/os/os.h"
@@ -80,7 +80,7 @@ int meshio_mesh2connectivity(bool cnum, bool lhomog, int nelem,
     if (!cnum){ishift = 1;}
     // Get the size of the IEN array
     len_ien = mesh_element__getIENSize(nelem, lhomog, element);
-    ien_ptr = (int *)calloc(nelem + 1, sizeof(int));
+    ien_ptr = (int *)calloc((size_t) nelem + 1, sizeof(int));
     // Homogeneous meshes are pretty easy to write
     if (lhomog)
     {
@@ -91,7 +91,7 @@ int meshio_mesh2connectivity(bool cnum, bool lhomog, int nelem,
     }
     else
     {
-        ien = (int *)calloc(len_ien, sizeof(int));
+        ien = (int *)calloc((size_t) len_ien, sizeof(int));
         ierr = mesh_element__getIEN(nelem, len_ien, lhomog,
                                     element, ien_ptr, ien);
         indx = 0;
@@ -120,6 +120,10 @@ int meshio_mesh2connectivity(bool cnum, bool lhomog, int nelem,
                 indx = indx + 1;
             }
         }
+        if (indx > ncon)
+        {
+            printf("%s: May have exceeded bounds on connectivity\n", fcnm);
+        }
         free(ien);
         ien = NULL;
     }
@@ -134,9 +138,6 @@ int meshio_mesh2connectivity(bool cnum, bool lhomog, int nelem,
  *
  * @param[in] dirnm         directory to write NLL model
  * @param[in] projnm        project name
- * @param[in] isp           if True then write the P velocity model.
- *                          if false then write the S velocity model
- *                          corresponding to a P or S wave model
  * @param[in] nelemx        number of elements in x
  * @param[in] nelemy        number of elements in y
  * @param[in] nelemz        number of elements in z
@@ -150,12 +151,6 @@ int meshio_mesh2connectivity(bool cnum, bool lhomog, int nelem,
  * @param[in] dep0          depth origin (m).  this should be 0 because
  *                          the NLL model starts at the free surface and
  *                          extends down 
- * @param[in] iengv_ptr     points from the ielem'th element in the 
- *                          regular mesh to the start index of iengv
- *                          [nelem+1]
- * @param[in] iengv         points from the ia'th anchor node on the 
- *                          ielem'th element to the global anchor node index
- * @param[in] xmod          the Vp (m/s) or Vs (m/s) model corresponding to isp 
  *
  * @result 0 indicate success
  *
@@ -181,19 +176,21 @@ int meshio_write__NLLGrid(char *dirnm, char *projnm,
     bool isp;
     const double ngnod8i = 1.0/8.0;
     // Basic checks
-    if (dx != dy || dx != dz){
+    if (fabs(dx - dy) > 1.e-5 || fabs(dx - dz) > 1.e-5)
+    {
         printf("%s: Error dx must equal dy must equal dz %f %f %f\n",
                fcnm, dx, dy, dz);
         return -1;
     }
-    if (nelemx < 1 || nelemy < 1 || nelemz < 1){
+    if (nelemx < 1 || nelemy < 1 || nelemz < 1)
+    {
         printf("%s: Error no points to write %d %d %d\n",
                fcnm, nelemx, nelemy, nelemz);
         return -1;
     }
     // Set space
-    slow_len = (float *)calloc(nelemx*nelemy*nelemz, sizeof(float));
-    buffer = (void *)calloc(nelemx*nelemy*nelemz, sizeof(float));
+    slow_len = (float *)calloc((size_t) (nelemx*nelemy*nelemz), sizeof(float));
+    buffer = (void *)calloc((size_t) (nelemx*nelemy*nelemz), sizeof(float));
     // Get the lat0, lon0
     utm_geo_utm2ll(&x0, &y0, &utm_zone, &lat0, &lon0);
     if (lon0 > 180.0){lon0 = lon0 - 360.0;}
@@ -243,15 +240,17 @@ int meshio_write__NLLGrid(char *dirnm, char *projnm,
                 }
             }
         }
-        memcpy(buffer, slow_len, nelemx*nelemy*nelemz*sizeof(float));
+        memcpy(buffer, slow_len, (size_t) (nelemx*nelemy*nelemz)*sizeof(float));
         // Write the model
         fpio = fopen(fname, "w");
-        ierr = fwrite((char *)buffer, nelemx*nelemy*nelemz*sizeof(float),
-                      1, fpio);
-        if (ierr != 1){
+        if (fwrite((char *)buffer,
+                   (size_t) (nelemx*nelemy*nelemz)*sizeof(float), 1, fpio) != 1)
+        {
             printf("%s: Error writing model\n", fcnm);
             return -1;
-        }else{
+        }
+        else
+        {
             ierr = 0;
         }
         fclose(fpio);
@@ -383,6 +382,7 @@ int meshio_write__h5(char *meshdir, char *projnm,
     //------------------------------------------------------------------------//
     ierr = 0;
     status = 0;
+    ngnod = 0;
     coords = NULL;
     connectivity = NULL;
     xmat = NULL;
@@ -403,7 +403,7 @@ int meshio_write__h5(char *meshdir, char *projnm,
     file_id = H5Fcreate(exofl, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
     //-------------------------------coordinates------------------------------//
     if (!mesh.lptr_only){
-        coords = (double *)calloc(3*mesh.nnpg, sizeof(double));
+        coords = (double *)calloc((size_t) (3*mesh.nnpg), sizeof(double));
         ierr = mesh_element__getAnchorNodeLocations(mesh.nelem, mesh.nnpg,
                                                     mesh.element,
                                                     &coords[0],
@@ -431,7 +431,7 @@ int meshio_write__h5(char *meshdir, char *projnm,
     }
     //----------------------------material properties-------------------------//
     if (!mesh.lptr_only){
-        xmat = (double *)calloc(nmat*mesh.nnpg, sizeof(double));
+        xmat = (double *)calloc((size_t) (nmat*mesh.nnpg), sizeof(double));
         ierr = mesh_element__getAnchorNodeProperties(mesh.nelem, mesh.nnpg,
                                                      mesh.element,
                                                      &xmat[0],           // vp
@@ -481,21 +481,23 @@ int meshio_write__h5(char *meshdir, char *projnm,
         ierr = 1;
         goto ERROR;
     }
-    connectivity = (int *)calloc(ncon, sizeof(int));
+    connectivity = (int *)calloc((size_t) ncon, sizeof(int));
     ierr = meshio_mesh2connectivity(cnum, mesh.lhomog, mesh.nelem,
                                     mesh.element,
                                     ncon, connectivity);
-    if (ierr != 0){
+    if (ierr != 0)
+    {
         printf("%s: Error computing connectivity\n", fcnm);
         goto ERROR;
     }
     type = mesh.element[0].type;
-    if (type != HEX8 && type != TET4){
+    if (type != HEX8 && type != TET4)
+    {
         printf("%s: Warning not sure about this\n", fcnm);
     }
     ngnod = mesh.element[0].ngnod;
-    dims[0] = mesh.nelem;
-    dims[1] = ngnod;
+    dims[0] = (hsize_t) mesh.nelem;
+    dims[1] = (hsize_t) ngnod;
     dataspace_id = H5Screate_simple(2, dims, NULL);
     dataset_id = H5Dcreate2(file_id, "Connectivity\0", H5T_NATIVE_INT,
                             dataspace_id,
@@ -523,7 +525,8 @@ ERROR:;
     // Close the hdf5 file
     status = H5Fclose(file_id);
     // Write the Xdmf file
-    if (ierr == 0){
+    if (ierr == 0)
+    {
         meshio_write__xdmf(meshdir, projnm, mesh.nelem, ngnod, mesh.nnpg);
     }
     return ierr;
@@ -533,14 +536,13 @@ ERROR:;
  * @brief Writes the mesh for consumption by SPECFEM3D
  *
  * @param[in] meshdir     name of directory to write mesh
- * @param[in] projnm      name of project
  *
  * @param[in] mesh        holds the mesh structure
  *
  * @result 0 indicates success
  *
  */
-int meshio_write__specfem3d(char *meshdir, char *projnm,
+int meshio_write__specfem3d(char *meshdir, // char *projnm,
                             struct mesh_struct mesh)
 {
     const char *fcnm = "meshio_write__specfem3d\0";
@@ -609,9 +611,9 @@ int meshio_write__specfem3d(char *meshdir, char *projnm,
                     mesh.xlocs[inpg], mesh.ylocs[inpg], mesh.zlocs[inpg]);
         }
     }else{
-        xlocs = (double *)calloc(mesh.nnpg, sizeof(double));
-        ylocs = (double *)calloc(mesh.nnpg, sizeof(double));
-        zlocs = (double *)calloc(mesh.nnpg, sizeof(double));
+        xlocs = (double *)calloc((size_t) mesh.nnpg, sizeof(double));
+        ylocs = (double *)calloc((size_t) mesh.nnpg, sizeof(double));
+        zlocs = (double *)calloc((size_t) mesh.nnpg, sizeof(double));
         ierr = mesh_element__getAnchorNodeLocations(mesh.nelem, mesh.nnpg,
                                                     mesh.element,
                                                     xlocs, ylocs, zlocs);
@@ -754,15 +756,15 @@ int meshio_write__specfem3d(char *meshdir, char *projnm,
             printf("%s: Error getting ien size!\n", fcnm);
             continue;
         }
-        bdry2glob_elem = (int *)calloc(nelem_bdry, sizeof(int)); 
-        ien_bdry = (int *)calloc(lenien_bdry, sizeof(int));
-        ien_bdry_ptr = (int *)calloc(nelem_bdry + 1, sizeof(int));
+        bdry2glob_elem = (int *)calloc((size_t) nelem_bdry, sizeof(int)); 
+        ien_bdry = (int *)calloc((size_t) lenien_bdry, sizeof(int));
+        ien_bdry_ptr = (int *)calloc((size_t) nelem_bdry + 1, sizeof(int));
         ierr = mesh_element__getIENBoundary(mesh.nelem, mesh.lhomog,
                                             side,
                                             mesh.element,
                                             nelem_bdry, ien_bdry_ptr,
                                             bdry2glob_elem,
-                                            lenien_bdry, ien_bdry);
+                                            ien_bdry);
         if (ierr != 0){
             printf("%s: Error setting IENboundary\n", fcnm);
             goto ERROR;

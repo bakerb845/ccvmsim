@@ -1,7 +1,7 @@
 #include <stdbool.h>
 #include "cvm_struct.h"
-#ifndef __MESH_H__
-#define __MESH_H__
+#ifndef _mesh_h__
+#define _mesh_h__ 1
 #ifdef __cplusplus
 extern "C" 
 {
@@ -24,7 +24,7 @@ int mesh_element__getIENBoundary(int nelem, bool lhomog,
                                  struct mesh_element_struct *element,
                                  int nelem_bdry, int *ien_bdry_ptr,
                                  int *bdry2glob_elem,
-                                 int lenien_bdry, int *ien_bdry);
+                                 int *ien_bdry);
 int regmesh_makeRegularNodes(int nx, int ny, int nz,
                              double dx, double dy, double dz,
                              double x0, double y0, double z0,
@@ -36,6 +36,10 @@ void __regmesh_makeRegularNodes(int nx, int ny, int nz,
                                 double *__restrict__ xlocs,
                                 double *__restrict__ ylocs,
                                 double *__restrict__ zlocs);
+void regmesh_constantMaterialModel(double vp, double vs, double dens,
+                                   double Qp, double Qs, 
+                                   int nelem,
+                                   struct mesh_element_struct *element);
 void __regmesh_copyRegularModel(bool lflip, int nx, int ny, int nz, 
                                 const double *__restrict__ vp, 
                                 const double *__restrict__ vs, 
@@ -111,6 +115,18 @@ int mesh_element__getIEN(int nelem, int len_ien, bool lhomog,
 int mesh_element__getBoundaryIENSize(int nelem,
                                      enum mesh_bc_enum side,
                                      struct mesh_element_struct *element);
+int mesh_element__getBoundarySurface(int nelem, enum mesh_bc_enum bdry,
+                                     struct mesh_element_struct *element,
+                                     int *ien_bdry_ptr,
+                                     int *ien_bdry);
+int __mesh_element__setBoundaryConditionList(enum mesh_bc_enum side,
+                                             int *bc_list);
+int mesh_element__getIENBoundarySize(int nelem, enum mesh_bc_enum bdry,
+                                     struct mesh_element_struct *element,
+                                     int *nelem_bdry, int *len_ien_bdry);
+int mesh_setBoundaryMesh(struct mesh_struct mesh,
+                         enum mesh_bc_enum side,
+                         struct mesh_struct *bdry);
 void mesh_template__hexTriple(struct mesh_element_struct *tmplate);
 int meshio_write__NLLGrid(char *dirnm, char *projnm,
                           int nelemx, int nelemy, int nelemz,
@@ -129,7 +145,7 @@ int meshio_write__xdmf(char *meshdir, char *projnm,
                        int nelem, int ngnod, int nnpg);
 int meshio_write__setFilename(char *meshdir, char *projnm, char *app,
                               char fname[PATH_MAX]);
-int meshio_write__specfem3d(char *meshdir, char *projnm,
+int meshio_write__specfem3d(char *meshdir, 
                             struct mesh_struct mesh);
 
 #ifdef __cplusplus

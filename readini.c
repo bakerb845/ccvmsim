@@ -2,17 +2,25 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdocumentation"
+#pragma clang diagnostic ignored "-Wreserved-id-macro"
+#pragma clang diagnostic ignored "-Wpadded"
+#endif
 #include <iniparser.h>
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
 #include <iscl/os/os.h>
 #include <iscl/geodetic/geodetic.h>
-#include <iscl/log/log.h>
 #include "cvm.h"
 #include "cvm_constants.h"
 
 /*!
  * @brief Reads the CVM mesher initialization file
  *
- * @param[in] ini_file     name of ini file
+ * @param[in] projnm       project name
  *
  * @param[out] parms       CVM mesher parameters
  *
@@ -45,13 +53,13 @@ int cvm_readini(char *projnm, struct cvm_parms_struct *parms)
     parms->lat0_cvm = lat0_cvm;
     parms->lon0_cvm = lon0_cvm;
     parms->common_mult = common_mult;
-    parms->dxl_cvm = (double *)calloc(parms->nlay_cvm, sizeof(double));
-    parms->dyl_cvm = (double *)calloc(parms->nlay_cvm, sizeof(double));
-    parms->dzl_cvm = (double *)calloc(parms->nlay_cvm, sizeof(double));
-    parms->z0_cvm  = (double *)calloc(parms->nlay_cvm, sizeof(double));
-    parms->nxl_cvm = (int *)calloc(parms->nlay_cvm, sizeof(int));
-    parms->nyl_cvm = (int *)calloc(parms->nlay_cvm, sizeof(int));
-    parms->nzl_cvm = (int *)calloc(parms->nlay_cvm, sizeof(int));
+    parms->dxl_cvm = (double *)calloc((size_t) parms->nlay_cvm, sizeof(double));
+    parms->dyl_cvm = (double *)calloc((size_t) parms->nlay_cvm, sizeof(double));
+    parms->dzl_cvm = (double *)calloc((size_t) parms->nlay_cvm, sizeof(double));
+    parms->z0_cvm  = (double *)calloc((size_t) parms->nlay_cvm, sizeof(double));
+    parms->nxl_cvm = (int *)calloc((size_t) parms->nlay_cvm, sizeof(int));
+    parms->nyl_cvm = (int *)calloc((size_t) parms->nlay_cvm, sizeof(int));
+    parms->nzl_cvm = (int *)calloc((size_t) parms->nlay_cvm, sizeof(int));
     xoff_max = (double) (nxl_cvm[0]-1)*dxl_cvm[0];
     yoff_max = (double) (nyl_cvm[0]-1)*dyl_cvm[0];
     for (k=0; k<nlay_cvm; k++)
@@ -93,14 +101,14 @@ int cvm_readini(char *projnm, struct cvm_parms_struct *parms)
     ini = iniparser_load(ini_file);
     if (ini == NULL)
     {
-        log_errorF("%s: Cannot parse ini file\n", fcnm);
+        printf("%s: Cannot parse ini file\n", fcnm);
         return -1;
     }
     s = iniparser_getstring(ini, "cvm_h5repack:cvm_moddir\0", "./\0");
     strcpy(parms->cvm_moddir, s);
     if (!os_path_isdir(parms->cvm_moddir))
     {
-        log_errorF("%s: CVM directory doesn't exist\n", fcnm);
+        printf("%s: CVM directory doesn't exist\n", fcnm);
         return -1;
     }
     // get the mesh directory
@@ -116,7 +124,7 @@ int cvm_readini(char *projnm, struct cvm_parms_struct *parms)
     }   
     if (os_makedirs(parms->cvm_outputdir) != 0)
     {
-        log_errorF("%s: Failed to make cvm output directory\n", fcnm);
+        printf("%s: Failed to make cvm output directory\n", fcnm);
         return -1; 
     }
     // get the nll directory
@@ -132,7 +140,7 @@ int cvm_readini(char *projnm, struct cvm_parms_struct *parms)
     }
     if (os_makedirs(parms->nll_outputdir) != 0)
     {
-        log_errorF("%s: Failed to make nll output directory\n", fcnm);
+        printf("%s: Failed to make nll output directory\n", fcnm);
         return -1; 
     }
     // get lat/lon/max depth
@@ -151,25 +159,25 @@ int cvm_readini(char *projnm, struct cvm_parms_struct *parms)
     if (parms->lon1 < 0.0){parms->lon1 = parms->lon1 + 360.0;}
     if (parms->lat0 < parms->lat0_cvm)
     {
-        log_warnF("%s: Changing minimum latitude to %f\n",
+        printf("%s: Changing minimum latitude to %f\n",
                   fcnm, parms->lat0_cvm);
         parms->lat0 = parms->lat0_cvm;
     }
     if (parms->lon0 < parms->lon0_cvm)
     {
-        log_warnF("%s: Changing minimum longitude to %f\n",
+        printf("%s: Changing minimum longitude to %f\n",
                   fcnm, parms->lon0_cvm);
         parms->lon0 = parms->lon0_cvm;
     }
     if (parms->lat1 > parms->lat1_cvm)
     {
-        log_warnF("%s: Changing maximum latitude to %f\n",
+        printf("%s: Changing maximum latitude to %f\n",
                   fcnm, parms->lat1_cvm);
         parms->lat1 = parms->lat1_cvm;
     }
     if (parms->lon1 > parms->lon1_cvm)
     {
-        log_warnF("%s: Changing maximum longitude to %f\n",
+        printf("%s: Changing maximum longitude to %f\n",
                   fcnm , parms->lon1_cvm);
         parms->lon1 = parms->lon1_cvm;
     } 
@@ -177,12 +185,12 @@ int cvm_readini(char *projnm, struct cvm_parms_struct *parms)
     parms->zmax = parms->zmax*1.e3; // convert to m
     if (parms->zmin != 0.0)
     {
-        log_errorF("%s: Error haven't done zmin > 0.0 yet\n", fcnm);
+        printf("%s: Error haven't done zmin > 0.0 yet\n", fcnm);
         return -1;
     }
     if (parms->zmax < parms->zmin)
     {
-        log_errorF("%s: Error zmax can't be shallower than zmin\n", fcnm);
+        printf("%s: Error zmax can't be shallower than zmin\n", fcnm);
         return -1;
     }
     // Compute the UTMS of the corresponding bounding box
@@ -193,8 +201,9 @@ int cvm_readini(char *projnm, struct cvm_parms_struct *parms)
     utm_geo(&parms->lon1, &parms->lat1,
             &parms->utm_x1, &parms->utm_y1,
             &parms->utmzone_cvm, &iway, &suppress);
-    if (parms->lat0 > parms->lat1){
-        log_errorF("%s: Error lat0 > lat1\n", fcnm);
+    if (parms->lat0 > parms->lat1)
+    {
+        printf("%s: Error lat0 > lat1\n", fcnm);
         return -1;
     }
     // Get the thresholding
@@ -247,7 +256,7 @@ int cvm_readini(char *projnm, struct cvm_parms_struct *parms)
                                             1.71);
     if (parms->vpvs_ratio <= 1.0)
     {
-        log_errorF("%s: Invalid vpvs ratio %f\n", fcnm, parms->vpvs_ratio);
+        printf("%s: Invalid vpvs ratio %f\n", fcnm, parms->vpvs_ratio);
         return -1;
     }
     parms->setvp_from_vs = iniparser_getboolean(ini,
@@ -270,16 +279,18 @@ int cvm_readini(char *projnm, struct cvm_parms_struct *parms)
     }
     if (os_makedirs(parms->mesh_outputdir) != 0)
     {
-        log_errorF("%s: Failed to make mesh output directory\n", fcnm);
+        printf("%s: Failed to make mesh output directory\n", fcnm);
         return -1;
     }
     // coarsening?
     parms->ncoarsen = iniparser_getint(ini, "cvm_mesh:ncoarsen\0", 0);
     if (parms->ncoarsen > 0)
     {
-        parms->zcoarsen = (double *)calloc(parms->ncoarsen, sizeof(double));
+        parms->zcoarsen = (double *)
+                          calloc((size_t) parms->ncoarsen, sizeof(double));
         parms->coarsen = (enum coarsen_type *)
-                         calloc(parms->ncoarsen, sizeof(enum coarsen_type));
+                         calloc((size_t) parms->ncoarsen,
+                                sizeof(enum coarsen_type));
         for (ic=0; ic<parms->ncoarsen; ic++)
         {
             memset(scoarsen, 0, sizeof(scoarsen));
@@ -287,29 +298,29 @@ int cvm_readini(char *projnm, struct cvm_parms_struct *parms)
             s = iniparser_getstring(ini, scoarsen, NULL);
             if (s == NULL)
             {
-                log_errorF("%s: Error reading coarsening layer: %d\n",
+                printf("%s: Error reading coarsening layer: %d\n",
                            fcnm, ic+1);
             }
             sscanf(s, "%lf %d", &parms->zcoarsen[ic], &ictype);
-            parms->coarsen[ic] = ictype; 
+            parms->coarsen[ic] = (enum coarsen_type) ictype; 
         }
     } 
     parms->dx_fem = iniparser_getdouble(ini, "cvm_mesh:dx_fem\0", 2500.0);
     if (parms->dx_fem <= 0.0)
     {
-        log_errorF("%s: Error dz grid spacing must be positive \n", fcnm);
+        printf("%s: Error dz grid spacing must be positive \n", fcnm);
         return -1;
     }
     parms->dy_fem = iniparser_getdouble(ini, "cvm_mesh:dy_fem\0", 2500.0);
     if (parms->dy_fem <= 0.0)
     {
-        log_errorF("%s: Error dz grid spacing must be positive \n", fcnm);
+        printf("%s: Error dz grid spacing must be positive \n", fcnm);
         return -1;
     }
     parms->dz_fem = iniparser_getdouble(ini, "cvm_mesh:dz_fem\0", 2500.0);
     if (parms->dz_fem <= 0.0)
     {
-        log_errorF("%s: Error dz grid spacing must be positive \n", fcnm);
+        printf("%s: Error dz grid spacing must be positive \n", fcnm);
         return -1;
     }
     // Deform FEM mesh to topography?
@@ -320,13 +331,13 @@ int cvm_readini(char *projnm, struct cvm_parms_struct *parms)
         s = iniparser_getstring(ini, "cvm_mesh:topo_file\0", NULL);
         if (s == NULL)
         {
-            log_errorF("%s: Error topography file not specified\n", fcnm);
+            printf("%s: Error topography file not specified\n", fcnm);
             return -1;
         }
         strcpy(parms->topofl, s);
         if (!os_path_isfile(parms->topofl)) 
         {
-            log_errorF("%s: Error topography file doesn't exist %s\n",
+            printf("%s: Error topography file doesn't exist %s\n",
                        fcnm, parms->topofl);
             return -1;
         }
@@ -335,12 +346,12 @@ int cvm_readini(char *projnm, struct cvm_parms_struct *parms)
                                        parms->utmzone_cvm);
     if (parms->utm_zone < 1 || parms->utm_zone > 60)
     {
-        log_errorF("%s: Invalid UTM zone\n", fcnm);
+        printf("%s: Invalid UTM zone\n", fcnm);
         return -1;
     }
     if (parms->utm_zone != parms->utmzone_cvm)
     {
-        log_warnF("%s: Warning topography UTM zone inconsistent with CVM\n",
+        printf("%s: Warning topography UTM zone inconsistent with CVM\n",
                   fcnm);
     }
     parms->ztopo_min = iniparser_getdouble(ini, "cvm_mesh:ztopo_min\0",

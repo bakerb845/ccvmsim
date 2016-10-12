@@ -1,15 +1,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-#include <omp.h>
 #include "cvm.h"
 /*!
  * @brief Borcher's empirical relationship between compressional velocity
- *        and density
- *
- * @reference Brocher, 2005.  
- *            Empirical relations between elastic wavesppeds and 
- *            density in the Earth's crust; BSSA v 95, no 6 p 2081-2092
+ *        and density.  Brocher, 2005.  Empirical relations between elastic
+ *        wavesppeds and density in the Earth's crust; BSSA v 95, no 6 p
+ *        2081-2092
  *
  * @param[in] Vp_ms  compressional velocity (m/s)
  *
@@ -34,18 +31,17 @@ double density_Brocher(double Vp_ms)
 //============================================================================//
 /*!
  * @brief Darcy-McPhees Empircal relationship between compressional velocity
- *        and density 
- *
- * @reference Roecker, Thurber, and McPhee (2004).  Joint inversion of 
- *            arrival time data from Parkfield: New constraints on 
- *            structure and hypocenter locations near SAFOD drill site.
- *            GRL, 31, L12S04.
+ *        and density.  Roecker, Thurber, and McPhee (2004).  Joint inversion of
+ *        arrival time data from Parkfield: New constraints on structure and
+ *        hypocenter locations near SAFOD drill site. GRL, 31, L12S04.
  *
  * @param[in] Vp_ms  compressional velocity (m/s)
  *
  * @result corresponding density (kg/m**3)
  *
  * @author Steve Roecker, RPI, and Ben Baker, ISTI
+ *
+ * @copyright BSD
  *
  */
 double density_DarcyMcphee(double Vp_ms)

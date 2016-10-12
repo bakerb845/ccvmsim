@@ -322,7 +322,8 @@ int cvm_extendBase(int nlay, struct cvm_model_struct *cvm_model)
         nxyz_top, ny_bot, ny_top;
     // While unlikely we avoid spacial aliasing by interpolating the fine 
     // grid on the coarse grid
-    for (ilay=0; ilay<nlay-1; ilay++){
+    for (ilay=0; ilay<nlay-1; ilay++)
+    {
         // Get the top
         nx_top = cvm_model[ilay].nx;
         ny_top = cvm_model[ilay].ny;
@@ -343,8 +344,8 @@ int cvm_extendBase(int nlay, struct cvm_model_struct *cvm_model)
         nx_bot = cvm_model[ilay+1].nx;
         ny_bot = cvm_model[ilay+1].ny;
         nxy_bot = nx_bot*ny_bot;
-        xbot = (double *)calloc(nx_bot, sizeof(double));
-        ybot = (double *)calloc(ny_bot, sizeof(double));
+        xbot = (double *)calloc((size_t) nx_bot, sizeof(double));
+        ybot = (double *)calloc((size_t) ny_bot, sizeof(double));
         for (ix=0; ix<nx_bot; ix++){
             xbot[ix] = cvm_model[ilay+1].x0 + cvm_model[ilay+1].dx*(double) ix;
         }
@@ -409,7 +410,8 @@ int cvm_extendBase(int nlay, struct cvm_model_struct *cvm_model)
                                       ny_top, ytop,
                                       nxy_top, &cvm_model[ilay].vp[nxyz_top],
                                       BILINEAR, true);
-        if (ierr != 0){
+        if (ierr != 0)
+        {
             log_errorF("%s: Error interpolating vp in layer: %d\n",
                        fcnm, ilay+1);
         }
@@ -421,7 +423,8 @@ int cvm_extendBase(int nlay, struct cvm_model_struct *cvm_model)
                                       ny_top, ytop,
                                       nxy_top, &cvm_model[ilay].vs[nxyz_top],
                                       BILINEAR, true);
-        if (ierr != 0){ 
+        if (ierr != 0)
+        {
             log_errorF("%s: Error interpolating vp in layer: %d\n",
                        fcnm, ilay+1);
         }
@@ -433,7 +436,8 @@ int cvm_extendBase(int nlay, struct cvm_model_struct *cvm_model)
                                       ny_top, ytop,
                                       nxy_top, &cvm_model[ilay].dens[nxyz_top],
                                       BILINEAR, true);
-        if (ierr != 0){ 
+        if (ierr != 0)
+        {
             log_errorF("%s: Error interpolating vp in layer: %d\n",
                        fcnm, ilay+1);
         }
@@ -445,7 +449,8 @@ int cvm_extendBase(int nlay, struct cvm_model_struct *cvm_model)
                                       ny_top, ytop,
                                       nxy_top, &cvm_model[ilay].Qp[nxyz_top],
                                       BILINEAR, true);
-        if (ierr != 0){
+        if (ierr != 0)
+        {
             log_errorF("%s: Error interpolating Qp in layer: %d\n",
                        fcnm, ilay+1);
         }
@@ -457,15 +462,18 @@ int cvm_extendBase(int nlay, struct cvm_model_struct *cvm_model)
                                       ny_top, ytop,
                                       nxy_top, &cvm_model[ilay].Qs[nxyz_top],
                                       BILINEAR, true);
-        if (ierr != 0){
+        if (ierr != 0)
+        {
             log_errorF("%s: Error interpolating vp in layer: %d\n",
                        fcnm, ilay+1);
         }
         // Fix nodes
         indx = 0;
         jndx = nxyz_top;
-        for (iy=0; iy<ny_top; iy++){
-            for (ix=0; ix<nx_top; ix++){
+        for (iy=0; iy<ny_top; iy++)
+        {
+            for (ix=0; ix<nx_top; ix++)
+            {
                 cvm_model[ilay].xlocs[jndx] = cvm_model[ilay].xlocs[indx];
                 cvm_model[ilay].ylocs[jndx] = cvm_model[ilay].ylocs[indx];
                 cvm_model[ilay].zlocs[jndx] = cvm_model[ilay+1].z0; 
@@ -707,11 +715,11 @@ int cvm_cvm2meshMaterials(int nlay, struct cvm_model_struct *cvm_model,
                 }
             }
             // Interpolate vp
-            ierr = __interpolate_interp3d(nx, x, ny, y, nz, z,
-                                          nxyz, vp,
-                                          nxyzq, xq, nxyzq, yq, nxyzq, zq,
-                                          nxyzq, vq,
-                                          TRILINEAR, lqptr_grid); 
+            ierr = __interpolate_interp3d_gsl(nx, x, ny, y, nz, z,
+                                              nxyz, vp,
+                                              nxyzq, xq, nxyzq, yq, nxyzq, zq,
+                                              nxyzq, vq,
+                                              TRILINEAR, lqptr_grid); 
             if (ierr != 0){
                 log_errorF("%s: Error interpolating vp!\n", fcnm);
                 return -1;
@@ -723,11 +731,11 @@ int cvm_cvm2meshMaterials(int nlay, struct cvm_model_struct *cvm_model,
                 linit[inpg] = true; 
             }
             // Interpolate vs
-            ierr = __interpolate_interp3d(nx, x, ny, y, nz, z,
-                                          nxyz, vs,
-                                          nxyzq, xq, nxyzq, yq, nxyzq, zq,
-                                          nxyzq, vq,
-                                          TRILINEAR, lqptr_grid);
+            ierr = __interpolate_interp3d_gsl(nx, x, ny, y, nz, z,
+                                              nxyz, vs,
+                                              nxyzq, xq, nxyzq, yq, nxyzq, zq,
+                                              nxyzq, vq,
+                                              TRILINEAR, lqptr_grid);
             if (ierr != 0){ 
                 log_errorF("%s: Error interpolating vs!\n", fcnm);
                 return -1; 
@@ -739,11 +747,11 @@ int cvm_cvm2meshMaterials(int nlay, struct cvm_model_struct *cvm_model,
                 linit[inpg] = true; 
             }
             // Interpolate density
-            ierr = __interpolate_interp3d(nx, x, ny, y, nz, z,
-                                          nxyz, dens,
-                                          nxyzq, xq, nxyzq, yq, nxyzq, zq,
-                                          nxyzq, vq,
-                                          TRILINEAR, lqptr_grid);
+            ierr = __interpolate_interp3d_gsl(nx, x, ny, y, nz, z,
+                                              nxyz, dens,
+                                              nxyzq, xq, nxyzq, yq, nxyzq, zq,
+                                              nxyzq, vq,
+                                              TRILINEAR, lqptr_grid);
             if (ierr != 0){ 
                 log_errorF("%s: Error interpolating density!\n", fcnm);
                 return -1; 
@@ -755,11 +763,11 @@ int cvm_cvm2meshMaterials(int nlay, struct cvm_model_struct *cvm_model,
                 linit[inpg] = true; 
             }
             // Interpolate Qp
-            ierr = __interpolate_interp3d(nx, x, ny, y, nz, z,
-                                          nxyz, Qp,
-                                          nxyzq, xq, nxyzq, yq, nxyzq, zq, 
-                                          nxyzq, vq, 
-                                          TRILINEAR, lqptr_grid);
+            ierr = __interpolate_interp3d_gsl(nx, x, ny, y, nz, z,
+                                              nxyz, Qp,
+                                              nxyzq, xq, nxyzq, yq, nxyzq, zq, 
+                                              nxyzq, vq, 
+                                              TRILINEAR, lqptr_grid);
             if (ierr != 0){ 
                 log_errorF("%s: Error interpolating Qp!\n", fcnm);
                 return -1; 
@@ -771,11 +779,11 @@ int cvm_cvm2meshMaterials(int nlay, struct cvm_model_struct *cvm_model,
                 linit[inpg] = true; 
             }
              // Interpolate Qs
-            ierr = __interpolate_interp3d(nx, x, ny, y, nz, z,
-                                          nxyz, Qs,
-                                          nxyzq, xq, nxyzq, yq, nxyzq, zq, 
-                                          nxyzq, vq, 
-                                          TRILINEAR, lqptr_grid);
+            ierr = __interpolate_interp3d_gsl(nx, x, ny, y, nz, z,
+                                              nxyz, Qs,
+                                              nxyzq, xq, nxyzq, yq, nxyzq, zq, 
+                                              nxyzq, vq, 
+                                              TRILINEAR, lqptr_grid);
             if (ierr != 0){ 
                 log_errorF("%s: Error interpolating Qs!\n", fcnm);
                 return -1; 

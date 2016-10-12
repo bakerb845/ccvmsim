@@ -1,6 +1,6 @@
 #include "cvm_struct.h"
-#ifndef __TOPO30_H__
-#define __TOPO30_H__
+#ifndef _topo30_h__
+#define _topo30_h__ 1
 #ifdef __cplusplus
 extern "C" 
 {
