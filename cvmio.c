@@ -380,6 +380,7 @@ int cvmio_readLayer(int lay,
     }
     if (parms.lthresh_dens)
     {
+       printf("%s: Thresholding density...\n", fcnm);
        #pragma omp simd
        for (indx_mod=0; indx_mod<cvm_model->npts; indx_mod++)
        {
@@ -390,6 +391,7 @@ int cvmio_readLayer(int lay,
        }
     }
     // Compute the quality factor
+    printf("%s: Computing the quality factor...\n", fcnm);
     for (indx_mod=0; indx_mod<cvm_model->npts; indx_mod++)
     {
         qualityFactor_Frankel(cvm_model->vs[indx_mod],

@@ -7,7 +7,7 @@
 /*!
  * @brief Frees the parameter structure 
  *
- * @param[inout] parms     parameter structure to be freed
+ * @param[in,out] parms     parameter structure to be freed
  *
  * @author Ben Baker, ISTI
  *
@@ -32,7 +32,7 @@ void cvm_memory_free__parms(struct cvm_parms_struct *parms)
  *
  * @param[in] nlay            number of layers in model
  *
- * @param[inout] cvm_model    CVM model to free
+ * @param[in,out] cvm_model   CVM model to free
  *
  * @author Ben Baker, ISTI
  */
